@@ -6,12 +6,18 @@
 @property (nonatomic, strong) UISwitch *pitchSwitch;
 @property (nonatomic, strong) UISlider *pitchSlider;
 @property (nonatomic, strong) UILabel *pitchLabel;
+@property (nonatomic, strong) UILabel *indexLabel;
+@property (nonatomic, strong) UISlider *indexSlider;
 @property (nonatomic, strong) UITextField *bgField;
 @property (nonatomic, strong) UISlider *bgVolumeSlider;
 @property (nonatomic, strong) UILabel *bgVolumeLabel;
 @property (nonatomic, strong) UISlider *noiseSlider;
 @property (nonatomic, strong) UILabel *noiseLabel;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
+@property (nonatomic, strong) UILabel *bgLabel;
+@property (nonatomic, strong) UIButton *saveBtn;
+@property (nonatomic, strong) UIVisualEffectView *blurView;
+
 
 @property (nonatomic, strong) UIPickerView *modelPicker;
 @property (nonatomic, strong) UIPickerView *bgPicker;
@@ -63,13 +69,13 @@
     _containerView.backgroundColor = [UIColor clearColor];
     [self.view addSubview:_containerView];
     
-    UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleDark]];
-    blurView.frame = _containerView.bounds;
-    blurView.layer.cornerRadius = 24;
-    blurView.clipsToBounds = YES;
-    blurView.layer.borderWidth = 1.5;
-    blurView.layer.borderColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.6 alpha:0.5].CGColor;
-    [_containerView addSubview:blurView];
+    self.blurView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleDark]];
+    self.blurView.frame = _containerView.bounds;
+    self.blurView.layer.cornerRadius = 24;
+    self.blurView.clipsToBounds = YES;
+    self.blurView.layer.borderWidth = 1.5;
+    self.blurView.layer.borderColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.6 alpha:0.5].CGColor;
+    [_containerView addSubview:self.blurView];
     
     _containerView.layer.shadowColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.6 alpha:0.6].CGColor;
     _containerView.layer.shadowOffset = CGSizeZero;
@@ -168,14 +174,34 @@
     [self.pitchSlider addTarget:self action:@selector(sliderValueChanged:) forControlEvents:UIControlEventValueChanged];
     [_containerView addSubview:self.pitchSlider];
     
-    // Arka Plan Sesi & Volume
-    UILabel *bgLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 305, 280, 18)];
-    bgLabel.text = @"Arka Plan Sesi (Gürültü/Yağmur):";
-    bgLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
-    bgLabel.textColor = [UIColor whiteColor];
-    [_containerView addSubview:bgLabel];
+    // Index Slider
+    float savedIndex = [[NSUserDefaults standardUserDefaults] floatForKey:@"C2M_RVC_INDEX"];
+    if (savedIndex == 0 && ![[NSUserDefaults standardUserDefaults] objectForKey:@"C2M_RVC_INDEX"]) savedIndex = 0.4;
     
-    self.bgField = [[UITextField alloc] initWithFrame:CGRectMake(20, 325, 280, 32)];
+    self.indexLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 305, 280, 18)];
+    self.indexLabel.text = [NSString stringWithFormat:@"Index Oranı: %.2f", savedIndex];
+    self.indexLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    self.indexLabel.textColor = [UIColor colorWithWhite:0.8 alpha:1.0];
+    self.indexLabel.hidden = YES;
+    [_containerView addSubview:self.indexLabel];
+    
+    self.indexSlider = [[UISlider alloc] initWithFrame:CGRectMake(20, 325, 280, 24)];
+    self.indexSlider.minimumValue = 0.0;
+    self.indexSlider.maximumValue = 1.0;
+    self.indexSlider.value = savedIndex;
+    self.indexSlider.tintColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.6 alpha:1.0];
+    self.indexSlider.hidden = YES;
+    [self.indexSlider addTarget:self action:@selector(sliderValueChanged:) forControlEvents:UIControlEventValueChanged];
+    [_containerView addSubview:self.indexSlider];
+
+    // Arka Plan Sesi & Volume
+    self.bgLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 355, 280, 18)];
+    self.bgLabel.text = @"Arka Plan Sesi (Gürültü/Yağmur):";
+    self.bgLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    self.self.bgLabel.textColor = [UIColor whiteColor];
+    [_containerView addSubview:self.bgLabel];
+    
+    self.bgField = [[UITextField alloc] initWithFrame:CGRectMake(20, 375, 280, 32)];
     self.bgField.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.1];
     self.bgField.textColor = [UIColor whiteColor];
     self.bgField.layer.cornerRadius = 8;
@@ -190,13 +216,13 @@
     float savedBgVol = [[NSUserDefaults standardUserDefaults] floatForKey:@"C2M_RVC_BG_VOL"];
     if (savedBgVol == 0 && ![[NSUserDefaults standardUserDefaults] objectForKey:@"C2M_RVC_BG_VOL"]) savedBgVol = -15.0;
     
-    self.bgVolumeLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 362, 280, 18)];
+    self.bgVolumeLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 412, 280, 18)];
     self.bgVolumeLabel.text = [NSString stringWithFormat:@"Arka Plan Ses Seviyesi (%.0f dB)", savedBgVol];
     self.bgVolumeLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
     self.bgVolumeLabel.textColor = [UIColor colorWithWhite:0.8 alpha:1.0];
     [_containerView addSubview:self.bgVolumeLabel];
     
-    self.bgVolumeSlider = [[UISlider alloc] initWithFrame:CGRectMake(20, 382, 280, 24)];
+    self.bgVolumeSlider = [[UISlider alloc] initWithFrame:CGRectMake(20, 432, 280, 24)];
     self.bgVolumeSlider.minimumValue = -40;
     self.bgVolumeSlider.maximumValue = 0;
     self.bgVolumeSlider.value = savedBgVol;
@@ -208,13 +234,13 @@
     float savedNoise = [[NSUserDefaults standardUserDefaults] floatForKey:@"C2M_RVC_NOISE"];
     if (savedNoise == 0 && ![[NSUserDefaults standardUserDefaults] objectForKey:@"C2M_RVC_NOISE"]) savedNoise = 0.75;
     
-    self.noiseLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 415, 280, 18)];
+    self.noiseLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 465, 280, 18)];
     self.noiseLabel.text = [NSString stringWithFormat:@"Gürültü Engelleme (%.0f%%)", savedNoise * 100];
     self.noiseLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
     self.noiseLabel.textColor = [UIColor whiteColor];
     [_containerView addSubview:self.noiseLabel];
     
-    self.noiseSlider = [[UISlider alloc] initWithFrame:CGRectMake(20, 435, 280, 24)];
+    self.noiseSlider = [[UISlider alloc] initWithFrame:CGRectMake(20, 485, 280, 24)];
     self.noiseSlider.minimumValue = 0.0;
     self.noiseSlider.maximumValue = 1.0;
     self.noiseSlider.value = savedNoise;
@@ -223,17 +249,71 @@
     [_containerView addSubview:self.noiseSlider];
     
     // Action Buttons
-    UIButton *saveBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    saveBtn.frame = CGRectMake(20, 530, 280, 42);
-    saveBtn.backgroundColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.6 alpha:0.8];
-    saveBtn.layer.cornerRadius = 14;
-    [saveBtn setTitle:@"Kaydet ve Kapat" forState:UIControlStateNormal];
-    saveBtn.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
-    [saveBtn addTarget:self action:@selector(saveAndClose) forControlEvents:UIControlEventTouchUpInside];
-    [_containerView addSubview:saveBtn];
+    self.saveBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    self.saveBtn.frame = CGRectMake(20, 545, 280, 42);
+    self.saveBtn.backgroundColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.6 alpha:0.8];
+    self.saveBtn.layer.cornerRadius = 14;
+    [self.saveBtn setTitle:@"Kaydet ve Kapat" forState:UIControlStateNormal];
+    self.saveBtn.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
+    [self.saveBtn addTarget:self action:@selector(saveAndClose) forControlEvents:UIControlEventTouchUpInside];
+    [_containerView addSubview:self.saveBtn];
     
     UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissKeyboard)];
     [self.view addGestureRecognizer:tap];
+}
+
+
+- (void)updateUIForIndex:(BOOL)hasIndex animated:(BOOL)animated {
+    CGFloat offset = hasIndex ? 0 : -50;
+    CGFloat baseHeight = 600;
+    CGFloat newHeight = baseHeight + offset;
+    
+    CGFloat bgLabelY = 355;
+    CGFloat bgFieldY = 375;
+    CGFloat bgVolLabelY = 412;
+    CGFloat bgVolSliderY = 432;
+    CGFloat noiseLabelY = 465;
+    CGFloat noiseSliderY = 485;
+    CGFloat saveBtnY = 545;
+    
+    void (^animations)(void) = ^{
+        self.indexLabel.alpha = hasIndex ? 1.0 : 0.0;
+        self.indexSlider.alpha = hasIndex ? 1.0 : 0.0;
+        
+        CGRect f1 = self.bgLabel.frame; f1.origin.y = bgLabelY + offset; self.bgLabel.frame = f1;
+        CGRect f2 = self.bgField.frame; f2.origin.y = bgFieldY + offset; self.bgField.frame = f2;
+        CGRect f3 = self.bgVolumeLabel.frame; f3.origin.y = bgVolLabelY + offset; self.bgVolumeLabel.frame = f3;
+        CGRect f4 = self.bgVolumeSlider.frame; f4.origin.y = bgVolSliderY + offset; self.bgVolumeSlider.frame = f4;
+        CGRect f5 = self.noiseLabel.frame; f5.origin.y = noiseLabelY + offset; self.noiseLabel.frame = f5;
+        CGRect f6 = self.noiseSlider.frame; f6.origin.y = noiseSliderY + offset; self.noiseSlider.frame = f6;
+        CGRect f7 = self.saveBtn.frame; f7.origin.y = saveBtnY + offset; self.saveBtn.frame = f7;
+        
+        CGRect cFrame = _containerView.frame;
+        cFrame.size.height = newHeight;
+        _containerView.frame = cFrame;
+        _containerView.center = self.view.center;
+        
+        CGRect bFrame = self.blurView.frame;
+        bFrame.size.height = newHeight;
+        self.blurView.frame = bFrame;
+    };
+    
+    if (animated) {
+        if (hasIndex) {
+            self.indexLabel.hidden = NO;
+            self.indexSlider.hidden = NO;
+        }
+        [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:animations completion:^(BOOL finished) {
+            if (!hasIndex) {
+                self.indexLabel.hidden = YES;
+                self.indexSlider.hidden = YES;
+            }
+        }];
+    } else {
+        self.indexLabel.hidden = !hasIndex;
+        self.indexSlider.hidden = !hasIndex;
+        animations();
+    }
 }
 
 - (void)dismissKeyboard {
@@ -244,6 +324,8 @@
     if (slider == self.pitchSlider) {
         float val = roundf(slider.value);
         self.pitchLabel.text = [NSString stringWithFormat:@"Pitch (Ses Tonu): %+.0f yarım ton", val];
+    } else if (slider == self.indexSlider) {
+        self.indexLabel.text = [NSString stringWithFormat:@"Index Oranı: %.2f", slider.value];
     } else if (slider == self.bgVolumeSlider) {
         self.bgVolumeLabel.text = [NSString stringWithFormat:@"Arka Plan Ses Seviyesi (%.0f dB)", slider.value];
     } else if (slider == self.noiseSlider) {
@@ -260,9 +342,12 @@
 
 - (void)textFieldDidBeginEditing:(UITextField *)textField {
     if (textField == self.modelField) {
-        NSUInteger idx = [self.models indexOfObject:self.modelField.text];
-        if (idx != NSNotFound) {
-            [self.modelPicker selectRow:idx inComponent:0 animated:NO];
+        NSString *currentModel = self.modelField.text;
+        for (int i=0; i<self.models.count; i++) {
+            if ([self.models[i] hasPrefix:currentModel]) {
+                [self.modelPicker selectRow:i inComponent:0 animated:NO];
+                break;
+            }
         }
     } else if (textField == self.bgField) {
         NSUInteger idx = [self.backgrounds indexOfObject:self.bgField.text];
@@ -295,10 +380,25 @@
         }
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.modelPicker reloadAllComponents];
+            
             NSString *savedModel = self.modelField.text;
-            NSUInteger mIdx = [self.models indexOfObject:savedModel];
+            NSUInteger mIdx = NSNotFound;
+            for (int i=0; i<self.models.count; i++) {
+                if ([self.models[i] hasPrefix:savedModel]) {
+                    mIdx = i; break;
+                }
+            }
             if (mIdx != NSNotFound) {
                 [self.modelPicker selectRow:mIdx inComponent:0 animated:NO];
+                
+                NSString *raw = self.models[mIdx];
+                NSArray *parts = [raw componentsSeparatedByString:@"|"];
+                self.modelField.text = parts.firstObject;
+                BOOL hasIndex = NO;
+                if (parts.count > 1 && [parts[1] isEqualToString:@"1"]) {
+                    hasIndex = YES;
+                }
+                [self updateUIForIndex:hasIndex animated:NO];
             }
             
             NSURL *bgUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@/backgrounds", urlStr]];
@@ -332,10 +432,25 @@
     [[NSUserDefaults standardUserDefaults] setObject:self.modelField.text forKey:@"C2M_RVC_MODEL"];
     [[NSUserDefaults standardUserDefaults] setBool:self.pitchSwitch.isOn forKey:@"C2M_RVC_PITCH_ENABLED"];
     [[NSUserDefaults standardUserDefaults] setInteger:(NSInteger)roundf(self.pitchSlider.value) forKey:@"C2M_RVC_PITCH"];
+    [[NSUserDefaults standardUserDefaults] setFloat:self.indexSlider.value forKey:@"C2M_RVC_INDEX"];
     [[NSUserDefaults standardUserDefaults] setObject:self.bgField.text forKey:@"C2M_RVC_BG"];
     [[NSUserDefaults standardUserDefaults] setFloat:self.bgVolumeSlider.value forKey:@"C2M_RVC_BG_VOL"];
     [[NSUserDefaults standardUserDefaults] setFloat:self.noiseSlider.value forKey:@"C2M_RVC_NOISE"];
     [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    // ANINDA MODEL DEGISTIRME ISTEGI
+    NSString *urlStr = self.urlField.text;
+    if ([urlStr hasSuffix:@"/"]) urlStr = [urlStr substringToIndex:urlStr.length - 1];
+    NSString *modelStr = self.modelField.text;
+    if (![modelStr isEqualToString:@"None"] && modelStr.length > 0 && urlStr.length > 0) {
+        NSURL *setModelUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@/set_model", urlStr]];
+        NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:setModelUrl];
+        req.HTTPMethod = @"POST";
+        NSString *bodyStr = [NSString stringWithFormat:@"model_id=%@", [modelStr stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]]];
+        req.HTTPBody = [bodyStr dataUsingEncoding:NSUTF8StringEncoding];
+        [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
+        [[[NSURLSession sharedSession] dataTaskWithRequest:req] resume];
+    }
     
     [self dismissViewControllerAnimated:YES completion:nil];
 }
@@ -349,13 +464,24 @@
     return self.backgrounds.count;
 }
 - (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
-    if (pickerView == self.modelPicker) return self.models[row];
+    if (pickerView == self.modelPicker) {
+        NSString *raw = self.models[row];
+        return [raw componentsSeparatedByString:@"|"].firstObject;
+    }
     return self.backgrounds[row];
 }
 - (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
     if (pickerView == self.modelPicker) {
         if (row < self.models.count) {
-            self.modelField.text = self.models[row];
+            NSString *raw = self.models[row];
+            NSArray *parts = [raw componentsSeparatedByString:@"|"];
+            self.modelField.text = parts.firstObject;
+            
+            BOOL hasIndex = NO;
+            if (parts.count > 1 && [parts[1] isEqualToString:@"1"]) {
+                hasIndex = YES;
+            }
+            [self updateUIForIndex:hasIndex animated:YES];
         }
     } else {
         if (row < self.backgrounds.count) {

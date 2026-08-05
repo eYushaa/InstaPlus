@@ -133,6 +133,13 @@ static void processRVCForInstagramAudioURL(NSURL *recordUrl) {
         [body appendData:[[NSString stringWithFormat:@"Content-Disposition: form-data; name=\"bg_volume\"\r\n\r\n"] dataUsingEncoding:NSUTF8StringEncoding]];
         [body appendData:[[NSString stringWithFormat:@"%f\r\n", bgVol] dataUsingEncoding:NSUTF8StringEncoding]];
 
+        
+        float indexRatio = [[NSUserDefaults standardUserDefaults] floatForKey:@"C2M_RVC_INDEX"];
+        if (indexRatio == 0 && ![[NSUserDefaults standardUserDefaults] objectForKey:@"C2M_RVC_INDEX"]) indexRatio = 0.4;
+        [body appendData:[[NSString stringWithFormat:@"--%@\r\n", boundary] dataUsingEncoding:NSUTF8StringEncoding]];
+        [body appendData:[[NSString stringWithFormat:@"Content-Disposition: form-data; name=\"index_ratio\"\r\n\r\n"] dataUsingEncoding:NSUTF8StringEncoding]];
+        [body appendData:[[NSString stringWithFormat:@"%f\r\n", indexRatio] dataUsingEncoding:NSUTF8StringEncoding]];
+
         BOOL pitchEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"C2M_RVC_PITCH_ENABLED"];
         if (pitchEnabled) {
             NSInteger pitchVal = [[NSUserDefaults standardUserDefaults] integerForKey:@"C2M_RVC_PITCH"];

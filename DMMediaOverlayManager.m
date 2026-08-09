@@ -132,92 +132,78 @@
     NSString *username = nil;
     if (ctx && ctx[@"username"]) {
         username = ctx[@"username"];
-        [debugLog appendFormat:@"Username detected from context model: %@\n", username];
     } else {
         username = [self detectActiveUsername];
-        [debugLog appendFormat:@"Username detected from UI fallback: %@\n", username];
     }
     
     if (!username || username.length == 0) {
         username = @"Unknown_User";
     }
     
-    NSError *error = nil;
-    
-    // 2. Video Extraction (Model-based)
-    if (ctx && [ctx[@"type"] isEqualToString:@"video"] && ctx[@"url"]) {
-        NSURL *videoURL = ctx[@"url"];
-        NSLog(@"[InstaPlus] Detected VIDEO extraction. URL: %@", videoURL.absoluteString);
+    // 2. VIDEO EXTRACTION
+    if (ctx && [ctx[@"type"] isEqualToString:@"video"]) {
+        if (ctx[@"url"]) {
+            NSURL *videoURL = ctx[@"url"];
+            NSLog(@"[InstaPlus] Starting VIDEO download from URL: %@", videoURL.absoluteString);
 
-        if (showToast) [self showToast:@"Video İndiriliyor... Lütfen bekleyin."];
-        
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            NSLog(@"[InstaPlus] Starting background download for video...");
-            NSError *bgError = nil;
-            BOOL success = [[LocalPhotoManager sharedManager] saveVideoFromURL:videoURL forUsername:username error:&bgError];
+            if (showToast) [self showToast:@"Video İndiriliyor... Lütfen bekleyin."];
             
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if (success) {
-                    NSLog(@"[InstaPlus] Background video download SUCCESS");
-                    if (showToast) [self showToast:[NSString stringWithFormat:@"Video @%@ klasörüne kaydedildi!", username]];
-                } else {
-                    NSLog(@"[InstaPlus] Background video download FAILED. Error: %@", bgError);
-                    if (showToast) [self showAlertWithTitle:@"İndirme Hatası" message:[NSString stringWithFormat:@"Video indirilemedi. Hata: %@\n\nLOG:\n%@", bgError.localizedDescription ?: @"Bilinmiyor", debugLog]];
-                }
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                NSError *bgError = nil;
+                BOOL success = [[LocalPhotoManager sharedManager] saveVideoFromURL:videoURL forUsername:username error:&bgError];
+                
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (success) {
+                        NSLog(@"[InstaPlus] Video download SUCCESS");
+                        if (showToast) [self showToast:[NSString stringWithFormat:@"Video @%@ klasörüne kaydedildi!", username]];
+                    } else {
+                        NSLog(@"[InstaPlus] Video download FAILED: %@", bgError);
+                        [self showAlertWithTitle:@"İndirme Hatası" message:[NSString stringWithFormat:@"Video kaydedilemedi.\nHata: %@\n\nLOG:\n%@", bgError.localizedDescription ?: @"Bilinmiyor", debugLog]];
+                    }
+                });
             });
-        });
-        
-        return YES;
+            return YES;
+        } else {
+            // Explicitly detected video, but URL extraction failed. DO NOT SAVE PHOTO SCREENSHOT!
+            [self showAlertWithTitle:@"Video URL Bulunamadı" message:[NSString stringWithFormat:@"Ekrandaki medya Video olarak tespit edildi ancak indirme adresi alınamadı.\n\nLOG:\n%@", debugLog]];
+            return NO;
+        }
     }
     
-    // 3. Photo Extraction (Model-based high-res or UI fallback)
+    // 3. PHOTO EXTRACTION
     UIImage *capturedMedia = nil;
     if (ctx && [ctx[@"type"] isEqualToString:@"photo"]) {
-        NSLog(@"[InstaPlus] Detected PHOTO extraction from context");
+        NSLog(@"[InstaPlus] Detected PHOTO extraction");
         if (ctx[@"url"]) {
-            // It's a high-res photo URL
             NSURL *photoURL = ctx[@"url"];
-            NSLog(@"[InstaPlus] Trying to download high-res photo URL: %@", photoURL.absoluteString);
             NSData *data = [NSData dataWithContentsOfURL:photoURL];
             if (data && data.length > 5000) {
                 capturedMedia = [UIImage imageWithData:data];
-                NSLog(@"[InstaPlus] Successfully downloaded high-res photo");
-            } else {
-                NSLog(@"[InstaPlus] High-res photo download failed or data too small");
             }
         }
         if (!capturedMedia && ctx[@"image"]) {
             capturedMedia = ctx[@"image"];
-            NSLog(@"[InstaPlus] Used visible UI image from cell context");
         }
     }
     
-    if (!capturedMedia) {
+    // Fallback ONLY IF NOT explicit video
+    if (!capturedMedia && (!ctx || ![ctx[@"type"] isEqualToString:@"video"])) {
         [debugLog appendFormat:@"Falling back to generic screen image extraction...\n"];
-        NSLog(@"[InstaPlus] Falling back to generic screen image extraction");
         capturedMedia = [MediaExtractor extractLargestImageFromScreen];
     }
 
     if (capturedMedia) {
-        NSLog(@"[InstaPlus] Attempting to save photo...");
-        NSData *imageData = UIImageJPEGRepresentation(capturedMedia, 0.95);
-        if (!imageData || imageData.length == 0) {
-            NSLog(@"[InstaPlus] Failed to generate JPEG representation");
-            return NO;
-        }
-        
-
+        NSError *error = nil;
         BOOL success = [[LocalPhotoManager sharedManager] saveImage:capturedMedia forUsername:username error:&error];
         if (success) {
-            NSLog(@"[InstaPlus] Photo successfully saved to gallery");
             if (showToast) [self showToast:[NSString stringWithFormat:@"Fotoğraf @%@ klasörüne kaydedildi!", username]];
             return YES;
         } else {
-            NSLog(@"[InstaPlus] Photo save failed. Error: %@", error);
+            [self showAlertWithTitle:@"Kaydetme Hatası" message:[NSString stringWithFormat:@"Fotoğraf kaydedilemedi: %@", error.localizedDescription]];
         }
     }
     
-    if (showToast) [self showAlertWithTitle:@"Hata (Log)" message:debugLog];
+    [self showAlertWithTitle:@"Hata (Log)" message:debugLog];
     return NO;
 }
 
@@ -230,7 +216,6 @@
         if (!keyWindow) keyWindow = [UIApplication sharedApplication].keyWindow;
         if (!keyWindow) return;
         
-        // Önceki overlay varsa kaldır
         UIView *old = [keyWindow viewWithTag:99998888];
         if (old) [old removeFromSuperview];
         
@@ -238,7 +223,6 @@
         overlay.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.65];
         overlay.tag = 99998888;
         
-        // KLASİK iOS ALERT BOYUTU (Şık, Derli Toplu Modal)
         CGFloat cardW = MIN(keyWindow.bounds.size.width - 60, 320);
         CGFloat cardH = 270;
         CGRect cardFrame = CGRectMake((keyWindow.bounds.size.width - cardW) / 2.0, (keyWindow.bounds.size.height - cardH) / 2.0, cardW, cardH);
@@ -248,8 +232,10 @@
         box.layer.cornerRadius = 16;
         box.layer.shadowColor = [UIColor blackColor].CGColor;
         box.layer.shadowOpacity = 0.5;
-        box.layer.shadowRadius = 10;
+        box.layer.shadowOffset = CGSizeMake(0, 4);
+        box.layer.shadowRadius = 8;
         box.clipsToBounds = YES;
+        
         [overlay addSubview:box];
         
         UILabel *titleLbl = [[UILabel alloc] initWithFrame:CGRectMake(15, 14, cardW - 30, 24)];
@@ -296,7 +282,6 @@
     NSString *clean = [text stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"@ \t\n\r"]];
     NSString *lower = clean.lowercaseString;
     
-    // Filtrelenecek buton / Arayüz sabit kelimeleri
     NSArray *blacklist = @[
         @"live", @"block", @"reply", @"share", @"send", @"follow", @"following",
         @"requested", @"posts", @"followers", @"likes", @"comments", @"reels",
@@ -317,13 +302,11 @@
         }
     }
     
-    // Metrik ve Zaman/Hız kontrolü (örneğin "123", "12.3K", "1.2M" sayıları veya "1s", "5m", "2h", "1d", "3w", "1y", "1x", "2x" gibi ibareler)
     NSRegularExpression *metricRegex = [NSRegularExpression regularExpressionWithPattern:@"^[0-9.,]+[KkMmHhDdWwYySsXx]?$" options:0 error:nil];
     if ([metricRegex numberOfMatchesInString:clean options:0 range:NSMakeRange(0, clean.length)] > 0) {
         return NO;
     }
     
-    // Karakter kontrolü (Harf, Rakam, Nokta, Altçizgi)
     NSCharacterSet *invalidChars = [[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_."] invertedSet];
     if ([clean rangeOfCharacterFromSet:invalidChars].location != NSNotFound) {
         return NO;
@@ -367,7 +350,6 @@ static void traverseLabelsInViewForUsername(UIView *view, UIWindow *keyWindow, N
 - (NSString *)detectActiveUsername {
     UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
     
-    // 1. Önce aktif ViewController başlıklarını tara
     UIViewController *topVC = keyWindow.rootViewController;
     while (topVC.presentedViewController) {
         topVC = topVC.presentedViewController;
@@ -385,7 +367,6 @@ static void traverseLabelsInViewForUsername(UIView *view, UIWindow *keyWindow, N
         }
     }
     
-    // 2. Ekrandaki etiketleri tara
     NSString *detectedUser = nil;
     if (keyWindow) {
         CGFloat minDist = CGFLOAT_MAX;

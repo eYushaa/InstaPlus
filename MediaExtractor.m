@@ -82,7 +82,7 @@ static void determineBestCell(UIView *view, UIView * __strong *bestCell, CGFloat
 static NSInteger detectMediaTypeFromCell(UIView *cell) {
     if (!cell) return 0;
     
-    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem"];
+    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem", @"sundialVideo"];
     for (NSString *prop in modelProps) {
         @try {
             id model = [cell valueForKey:prop];
@@ -122,7 +122,7 @@ static NSInteger detectMediaTypeFromCell(UIView *cell) {
     }
     
     NSString *cls = NSStringFromClass([cell class]);
-    if ([cls containsString:@"Video"]) return 2;
+    if ([cls containsString:@"Video"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"]) return 2;
     if ([cls containsString:@"Photo"] || [cls containsString:@"Image"]) return 1;
     if ([cls containsString:@"Carousel"]) return 8;
     
@@ -141,7 +141,7 @@ static NSURL *extractURLFromPlayerLayer(CALayer *layer, NSMutableString *log) {
         AVPlayerItem *item = playerLayer.player.currentItem;
         if ([item.asset isKindOfClass:[AVURLAsset class]]) {
             NSURL *url = [(AVURLAsset *)item.asset URL];
-            if (url && [url.absoluteString hasPrefix:@"http"]) {
+            if (url && ([url.absoluteString hasPrefix:@"http"] || url.isFileURL)) {
                 [log appendFormat:@"[PlayerLayer] Found AVURLAsset URL: %@\n", url.lastPathComponent];
                 return url;
             }
@@ -149,26 +149,21 @@ static NSURL *extractURLFromPlayerLayer(CALayer *layer, NSMutableString *log) {
     }
     
     NSString *layerClass = NSStringFromClass([layer class]);
-    if ([layerClass containsString:@"FNF"] || [layerClass containsString:@"Video"] || [layerClass containsString:@"Player"]) {
-        NSArray *props = @[@"player", @"asset", @"representation", @"url", @"videoURL", @"currentURL", @"streamURL"];
+    if ([layerClass containsString:@"FNF"] || [layerClass containsString:@"Video"] || [layerClass containsString:@"Player"] || [layerClass containsString:@"AVPlayer"]) {
+        NSArray *props = @[@"player", @"asset", @"representation", @"url", @"videoURL", @"currentURL", @"streamURL", @"video", @"media", @"videoSpec"];
         for (NSString *p in props) {
             @try {
                 id val = [layer valueForKey:p];
                 if ([val isKindOfClass:[NSURL class]]) {
                     NSURL *u = (NSURL *)val;
-                    [log appendFormat:@"[FNFLayer] Found NSURL in '%@'\n", p];
-                    return u;
-                } else if ([val isKindOfClass:[NSString class]] && [(NSString *)val hasPrefix:@"http"]) {
-                    NSString *s = (NSString *)val;
-                    [log appendFormat:@"[FNFLayer] Found String URL in '%@'\n", p];
-                    return [NSURL URLWithString:s];
+                    if ([u.absoluteString hasPrefix:@"http"] || u.isFileURL) return u;
+                } else if ([val isKindOfClass:[NSString class]] && ([(NSString *)val hasPrefix:@"http"] || [(NSString *)val hasPrefix:@"file:"])) {
+                    return [NSURL URLWithString:(NSString *)val];
                 } else if (val) {
                     @try {
-                        id subUrl = [val valueForKey:@"url"];
-                        if ([subUrl isKindOfClass:[NSURL class]]) {
-                            NSURL *su = (NSURL *)subUrl;
-                            return su;
-                        }
+                        id subUrl = [val valueForKey:@"url"] ?: [val valueForKey:@"videoURL"];
+                        if ([subUrl isKindOfClass:[NSURL class]]) return (NSURL *)subUrl;
+                        else if ([subUrl isKindOfClass:[NSString class]]) return [NSURL URLWithString:(NSString *)subUrl];
                     } @catch(NSException *e) {}
                 }
             } @catch(NSException *e) {}
@@ -190,31 +185,33 @@ static void traverseHierarchyForActivePlayer(UIView *view, NSURL * __strong *bes
         CGFloat viewCenterY = globalFrame.origin.y + globalFrame.size.height / 2.0;
         CGFloat dist = fabs(viewCenterY - screenCenter.y);
         
-        if (view.layer.sublayers) {
-            for (CALayer *layer in view.layer.sublayers) {
-                if ([layer isKindOfClass:[AVPlayerLayer class]]) {
-                    AVPlayerLayer *playerLayer = (AVPlayerLayer *)layer;
-                    AVPlayer *player = playerLayer.player;
-                    BOOL isPlaying = (player && player.rate > 0.01);
-                    
-                    AVPlayerItem *item = player.currentItem;
-                    if ([item.asset isKindOfClass:[AVURLAsset class]]) {
-                        NSURL *url = [(AVURLAsset *)item.asset URL];
-                        if (url && [url.absoluteString hasPrefix:@"http"]) {
-                            CGFloat effectiveDist = isPlaying ? (dist * 0.1) : dist;
-                            if (effectiveDist < *minDist) {
-                                *minDist = effectiveDist;
-                                *bestURL = url;
-                                [log appendFormat:@"[PlayerLayer] Found playing AVURLAsset (dist: %.0f, playing: %d)\n", dist, isPlaying];
-                            }
+        NSMutableArray *layersToCheck = [NSMutableArray array];
+        if (view.layer) [layersToCheck addObject:view.layer];
+        if (view.layer.sublayers) [layersToCheck addObjectsFromArray:view.layer.sublayers];
+        
+        for (CALayer *layer in layersToCheck) {
+            if ([layer isKindOfClass:[AVPlayerLayer class]]) {
+                AVPlayerLayer *playerLayer = (AVPlayerLayer *)layer;
+                AVPlayer *player = playerLayer.player;
+                BOOL isPlaying = (player && player.rate > 0.01);
+                
+                AVPlayerItem *item = player.currentItem;
+                if ([item.asset isKindOfClass:[AVURLAsset class]]) {
+                    NSURL *url = [(AVURLAsset *)item.asset URL];
+                    if (url && [url.absoluteString hasPrefix:@"http"]) {
+                        CGFloat effectiveDist = isPlaying ? (dist * 0.1) : dist;
+                        if (effectiveDist < *minDist) {
+                            *minDist = effectiveDist;
+                            *bestURL = url;
+                            [log appendFormat:@"[PlayerLayer] Found playing AVURLAsset (dist: %.0f, playing: %d)\n", dist, isPlaying];
                         }
                     }
-                } else {
-                    NSURL *found = extractURLFromPlayerLayer(layer, log);
-                    if (found && dist < *minDist) {
-                        *minDist = dist;
-                        *bestURL = found;
-                    }
+                }
+            } else {
+                NSURL *found = extractURLFromPlayerLayer(layer, log);
+                if (found && dist < *minDist) {
+                    *minDist = dist;
+                    *bestURL = found;
                 }
             }
         }
@@ -620,7 +617,7 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             isVideoCell = YES;
         } else {
             NSString *cls = NSStringFromClass([bestCell class]);
-            isVideoCell = [cls containsString:@"Video"];
+            isVideoCell = [cls containsString:@"Video"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"];
             isPhotoCell = [cls containsString:@"Photo"] || [cls containsString:@"Image"];
         }
         [log appendFormat:@"[MediaExtractor] Best Cell (Max Area) is %@. mediaType=%ld, VideoCell=%d, PhotoCell=%d\n", NSStringFromClass([bestCell class]), (long)mediaType, isVideoCell, isPhotoCell];
@@ -640,10 +637,8 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             return @{@"type": @"video", @"url": globalVideoURL};
         }
         
-        NSURL *fallbackPhoto = extractPhotoURLFromObject(bestCell);
-        if (fallbackPhoto && isStrictPhotoURL(fallbackPhoto.absoluteString)) {
-            return @{@"type": @"photo", @"url": fallbackPhoto};
-        }
+        // Explicitly return type 'video' without URL so DMMediaOverlayManager shows alert log!
+        return @{@"type": @"video"};
     } 
     else if (isPhotoCell) {
         [log appendFormat:@"[MediaExtractor] Explicit PHOTO cell detected.\n"];
@@ -667,14 +662,14 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             return @{@"type": @"video", @"url": cellVideo};
         }
         
-        NSURL *cellPhoto = extractPhotoURLFromObject(bestCell);
-        if (cellPhoto && isStrictPhotoURL(cellPhoto.absoluteString)) {
-            return @{@"type": @"photo", @"url": cellPhoto};
-        }
-        
         NSURL *globalVideo = [self extractActiveVideoURLFromScreenWithLog:log];
         if (globalVideo) {
             return @{@"type": @"video", @"url": globalVideo};
+        }
+
+        NSURL *cellPhoto = extractPhotoURLFromObject(bestCell);
+        if (cellPhoto && isStrictPhotoURL(cellPhoto.absoluteString)) {
+            return @{@"type": @"photo", @"url": cellPhoto};
         }
     }
     

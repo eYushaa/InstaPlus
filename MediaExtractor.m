@@ -28,7 +28,7 @@ static NSString *cleanPathFromURLString(NSString *str) {
 
 static BOOL isStrictVideoURL(NSString *str) __attribute__((unused));
 static BOOL isStrictVideoURL(NSString *str) {
-    if (!str || str.length == 0 || [str containsString:@"oil_"]) return NO;
+    if (!str || str.length == 0) return NO;
     if (![str hasPrefix:@"http"] && ![str hasPrefix:@"file:"]) return NO;
     
     NSString *cleanPath = cleanPathFromURLString(str);
@@ -39,7 +39,7 @@ static BOOL isStrictVideoURL(NSString *str) {
 }
 
 static BOOL isStrictPhotoURL(NSString *str) {
-    if (!str || str.length == 0 || ![str hasPrefix:@"http"] || [str containsString:@"oil_"]) return NO;
+    if (!str || str.length == 0 || ![str hasPrefix:@"http"]) return NO;
     NSString *cleanPath = cleanPathFromURLString(str);
     if ([cleanPath hasSuffix:@".mp4"] || [cleanPath hasSuffix:@".m4v"] || [cleanPath containsString:@"/t50."] || [cleanPath hasSuffix:@".m3u8"]) {
         return NO;
@@ -141,7 +141,7 @@ static NSURL *extractURLFromPlayerLayer(CALayer *layer, NSMutableString *log) {
         AVPlayerItem *item = playerLayer.player.currentItem;
         if ([item.asset isKindOfClass:[AVURLAsset class]]) {
             NSURL *url = [(AVURLAsset *)item.asset URL];
-            if (url && [url.absoluteString hasPrefix:@"http"] && ![url.absoluteString containsString:@"oil_"]) {
+            if (url && [url.absoluteString hasPrefix:@"http"]) {
                 [log appendFormat:@"[PlayerLayer] Found AVURLAsset URL: %@\n", url.lastPathComponent];
                 return url;
             }
@@ -156,22 +156,18 @@ static NSURL *extractURLFromPlayerLayer(CALayer *layer, NSMutableString *log) {
                 id val = [layer valueForKey:p];
                 if ([val isKindOfClass:[NSURL class]]) {
                     NSURL *u = (NSURL *)val;
-                    if (![u.absoluteString containsString:@"oil_"]) {
-                        [log appendFormat:@"[FNFLayer] Found NSURL in '%@'\n", p];
-                        return u;
-                    }
+                    [log appendFormat:@"[FNFLayer] Found NSURL in '%@'\n", p];
+                    return u;
                 } else if ([val isKindOfClass:[NSString class]] && [(NSString *)val hasPrefix:@"http"]) {
                     NSString *s = (NSString *)val;
-                    if (![s containsString:@"oil_"]) {
-                        [log appendFormat:@"[FNFLayer] Found String URL in '%@'\n", p];
-                        return [NSURL URLWithString:s];
-                    }
+                    [log appendFormat:@"[FNFLayer] Found String URL in '%@'\n", p];
+                    return [NSURL URLWithString:s];
                 } else if (val) {
                     @try {
                         id subUrl = [val valueForKey:@"url"];
                         if ([subUrl isKindOfClass:[NSURL class]]) {
                             NSURL *su = (NSURL *)subUrl;
-                            if (![su.absoluteString containsString:@"oil_"]) return su;
+                            return su;
                         }
                     } @catch(NSException *e) {}
                 }
@@ -204,7 +200,7 @@ static void traverseHierarchyForActivePlayer(UIView *view, NSURL * __strong *bes
                     AVPlayerItem *item = player.currentItem;
                     if ([item.asset isKindOfClass:[AVURLAsset class]]) {
                         NSURL *url = [(AVURLAsset *)item.asset URL];
-                        if (url && [url.absoluteString hasPrefix:@"http"] && ![url.absoluteString containsString:@"oil_"]) {
+                        if (url && [url.absoluteString hasPrefix:@"http"]) {
                             CGFloat effectiveDist = isPlaying ? (dist * 0.1) : dist;
                             if (effectiveDist < *minDist) {
                                 *minDist = effectiveDist;
@@ -240,7 +236,7 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
             for (id u in (NSSet *)urlsObj) {
                 if ([u isKindOfClass:[NSURL class]]) {
                     NSString *str = [(NSURL *)u absoluteString];
-                    if (![str containsString:@"oil_"] && ![str containsString:@".m3u8"]) {
+                    if (![str containsString:@".m3u8"]) {
                         return (NSURL *)u;
                     }
                 }
@@ -289,7 +285,7 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
                     
                     if (candURL) {
                         NSString *str = candURL.absoluteString;
-                        BOOL isChunked = [str containsString:@"oil_"] || [str containsString:@".m3u8"];
+                        BOOL isChunked = [str containsString:@".m3u8"];
                         if (!isChunked) {
                             NSInteger area = w * h;
                             if (area > maxArea) {
@@ -310,7 +306,7 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         @"video", @"media", @"feedItem", @"currentMedia", @"currentClipsItem", 
         @"currentItem", @"item", @"post", @"videoSpec", @"visualMessage",
         @"directVisualMessage", @"content", @"mediaContent", @"message",
-        @"messageItem", @"currentVisualMessage"
+        @"messageItem", @"currentVisualMessage", @"sundialVideo", @"model", @"viewModel"
     ];
     for (NSString *subName in subObjNames) {
         @try {
@@ -328,12 +324,12 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
             id val = [obj valueForKey:propName];
             if ([val isKindOfClass:[NSURL class]]) {
                 NSString *str = [(NSURL *)val absoluteString];
-                if ([str hasPrefix:@"http"] && ![str containsString:@"oil_"]) {
+                if ([str hasPrefix:@"http"]) {
                     return (NSURL *)val;
                 }
             } else if ([val isKindOfClass:[NSString class]]) {
                 NSString *str = (NSString *)val;
-                if ([str hasPrefix:@"http"] && ([str containsString:@".mp4"] || [str containsString:@"/v/t"] || [str containsString:@"cdninstagram"]) && ![str containsString:@"oil_"]) {
+                if ([str hasPrefix:@"http"] && ([str containsString:@".mp4"] || [str containsString:@"/v/t"] || [str containsString:@"cdninstagram"])) {
                     return [NSURL URLWithString:str];
                 }
             }
@@ -417,7 +413,7 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
     }
     
     if (gLastPlayingVideoURL && (now - gLastPlayingVideoTime < 120.0)) {
-        if (![gLastPlayingVideoURL isFileURL] && ![gLastPlayingVideoURL.absoluteString containsString:@"oil_"]) {
+        if (![gLastPlayingVideoURL isFileURL]) {
             [log appendFormat:@"[Step 3] Found video URL from hook live URL!\n"];
             return gLastPlayingVideoURL;
         }
@@ -427,7 +423,7 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
         NSURL *playerURL = nil;
         CGFloat minDist = CGFLOAT_MAX;
         traverseHierarchyForActivePlayer(keyWindow, &playerURL, &minDist, log);
-        if (playerURL && ![playerURL isFileURL] && ![playerURL.absoluteString containsString:@"oil_"]) {
+        if (playerURL && ![playerURL isFileURL]) {
             [log appendFormat:@"[Step 4] Found video URL from visible player layer!\n"];
             return playerURL;
         }
@@ -453,7 +449,7 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
             if ([isDirectory boolValue]) continue;
             
             NSString *fileName = fileURL.lastPathComponent.lowercaseString;
-            if ([fileName hasPrefix:@"oil_"] || [fileName containsString:@"stream_"] || [fileName hasPrefix:@"chunk_"]) continue;
+            if ([fileName containsString:@"stream_"] || [fileName hasPrefix:@"chunk_"]) continue;
             
             if ([fileName hasSuffix:@".mp4"]) {
                 NSDate *modDate;
@@ -528,7 +524,7 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         } @catch(NSException *e) {}
     }
     
-    NSArray *subObjNames = @[@"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem"];
+    NSArray *subObjNames = @[@"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo"];
     for (NSString *subName in subObjNames) {
         @try {
             id subObj = [obj valueForKey:subName];

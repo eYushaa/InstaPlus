@@ -83,28 +83,42 @@ static void determineBestCell(UIView *view, UIView * __strong *bestCell, CGFloat
     }
 }
 
-static UIView *findBestCellFromHitTest(UIView *rootView) {
+static void findCellAtCenterRecursive(UIView *view, CGPoint center, UIView * __strong *bestCell, NSMutableString *log) {
+    if (!view || view.isHidden || view.alpha < 0.05) return;
+    
+    NSString *clsName = NSStringFromClass([view class]);
+    if ([view isKindOfClass:[UICollectionViewCell class]] || [view isKindOfClass:[UITableViewCell class]] || [clsName containsString:@"Cell"]) {
+        CGRect cellFrame = [view convertRect:view.bounds toView:nil];
+        if (CGRectContainsPoint(cellFrame, center)) {
+            if (![clsName containsString:@"Container"] && ![clsName containsString:@"Wrapper"]) {
+                *bestCell = view;
+                [log appendFormat:@"[HitTest] Found deep cell: %@ at %@\n", clsName, NSStringFromCGRect(cellFrame)];
+            }
+        }
+    }
+    
+    for (UIView *sub in view.subviews) {
+        findCellAtCenterRecursive(sub, center, bestCell, log);
+    }
+}
+
+static UIView *findBestCellFromHitTest(UIView *rootView, NSMutableString *log) {
     if (!rootView) return nil;
     CGRect screenBounds = [UIScreen mainScreen].bounds;
     CGPoint center = CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height / 2.0);
-    UIView *hitView = [rootView hitTest:center withEvent:nil];
-    
-    UIView *v = hitView;
-    while (v) {
-        NSString *cls = NSStringFromClass([v class]);
-        if ([v isKindOfClass:[UICollectionViewCell class]] || [v isKindOfClass:[UITableViewCell class]] || [cls containsString:@"Cell"]) {
-            // We want to avoid generic container wrappers if possible, but hitTest usually returns the deepest child,
-            // so if we traverse up and hit a Cell, it's very likely the exact inner cell (like IGFeedItemPhotoCell).
-            if (![cls containsString:@"Container"] && ![cls containsString:@"Wrapper"]) {
-                return v;
-            }
-        }
-        v = v.superview;
-    }
+    [log appendFormat:@"[HitTest] Screen Center: %@\n", NSStringFromCGPoint(center)];
     
     UIView *bestCell = nil;
-    CGFloat maxArea = 0;
-    determineBestCell(rootView, &bestCell, &maxArea);
+    findCellAtCenterRecursive(rootView, center, &bestCell, log);
+    
+    if (!bestCell) {
+        [log appendFormat:@"[HitTest] Recursive search failed! Falling back to maxArea.\n"];
+        CGFloat maxArea = 0;
+        determineBestCell(rootView, &bestCell, &maxArea);
+        [log appendFormat:@"[HitTest] Fallback picked: %@\n", NSStringFromClass([bestCell class])];
+    } else {
+        [log appendFormat:@"[HitTest] Final Picked Cell: %@\n", NSStringFromClass([bestCell class])];
+    }
     return bestCell;
 }
 
@@ -626,6 +640,43 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
     return nil;
 }
 
+static NSString *extractUsernameFromObject(id obj) {
+    if (!obj) return nil;
+    NSArray *userProps = @[@"user", @"owner", @"author"];
+    for (NSString *uProp in userProps) {
+        @try {
+            id user = [obj valueForKey:uProp];
+            if (user) {
+                id username = [user valueForKey:@"username"];
+                if ([username isKindOfClass:[NSString class]] && [(NSString *)username length] > 0) {
+                    return (NSString *)username;
+                }
+            }
+        } @catch(NSException *e) {}
+    }
+    
+    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem"];
+    for (NSString *prop in modelProps) {
+        @try {
+            id model = [obj valueForKey:prop];
+            if (model) {
+                for (NSString *uProp in userProps) {
+                    @try {
+                        id user = [model valueForKey:uProp];
+                        if (user) {
+                            id username = [user valueForKey:@"username"];
+                            if ([username isKindOfClass:[NSString class]] && [(NSString *)username length] > 0) {
+                                return (NSString *)username;
+                            }
+                        }
+                    } @catch(NSException *e) {}
+                }
+            }
+        } @catch(NSException *e) {}
+    }
+    return nil;
+}
+
 static NSInteger calculateCarouselIndex(UIView *cell) {
     if (!cell) return -1;
     UIView *v = cell;
@@ -702,7 +753,7 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
     
     UIView *bestCell = nil;
     if (keyWindow) {
-        bestCell = findBestCellFromHitTest(keyWindow);
+        bestCell = findBestCellFromHitTest(keyWindow, log);
     }
     
     BOOL isVideoCell = NO;
@@ -727,15 +778,20 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         NSURL *cellVideoURL = extractVideoURLFromObject(bestCell, log);
         if (cellVideoURL && isStrictVideoURL(cellVideoURL.absoluteString)) {
             [log appendFormat:@"[MediaExtractor] Success! Extracted VIDEO URL from best cell: %@\n", cellVideoURL.lastPathComponent];
-            return @{@"type": @"video", @"url": cellVideoURL};
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": cellVideoURL}];
+            NSString *u = extractUsernameFromObject(bestCell);
+            if (u) ret[@"username"] = u;
+            return ret;
         }
         
         NSURL *globalVideoURL = [self extractActiveVideoURLFromScreenWithLog:log];
         if (globalVideoURL) {
-            return @{@"type": @"video", @"url": globalVideoURL};
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": globalVideoURL}];
+            NSString *u = extractUsernameFromObject(bestCell) ?: extractUsernameFromObject(gLastPlayingMediaObject);
+            if (u) ret[@"username"] = u;
+            return ret;
         }
         
-        // Explicitly return type 'video' without URL so DMMediaOverlayManager shows alert log!
         return @{@"type": @"video"};
     } 
     else if (isPhotoCell) {
@@ -744,12 +800,18 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         NSURL *photoURL = extractPhotoURLFromObject(bestCell);
         if (photoURL && isStrictPhotoURL(photoURL.absoluteString)) {
             [log appendFormat:@"[MediaExtractor] Success! Extracted PHOTO URL from best cell: %@\n", photoURL.lastPathComponent];
-            return @{@"type": @"photo", @"url": photoURL};
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": photoURL}];
+            NSString *u = extractUsernameFromObject(bestCell);
+            if (u) ret[@"username"] = u;
+            return ret;
         }
         
         NSURL *videoURL = extractVideoURLFromObject(bestCell, log);
         if (videoURL && isStrictVideoURL(videoURL.absoluteString)) {
-            return @{@"type": @"video", @"url": videoURL};
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": videoURL}];
+            NSString *u = extractUsernameFromObject(bestCell);
+            if (u) ret[@"username"] = u;
+            return ret;
         }
     } 
     else {
@@ -757,17 +819,27 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         
         NSURL *cellVideo = extractVideoURLFromObject(bestCell, log);
         if (cellVideo && isStrictVideoURL(cellVideo.absoluteString)) {
-            return @{@"type": @"video", @"url": cellVideo};
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": cellVideo}];
+            NSString *u = extractUsernameFromObject(bestCell);
+            if (u) ret[@"username"] = u;
+            return ret;
+        }
+        
+        // MUST TRY PHOTO FIRST BEFORE FALLING BACK TO GLOBAL HIJACKED VIDEO
+        NSURL *cellPhoto = extractPhotoURLFromObject(bestCell);
+        if (cellPhoto && isStrictPhotoURL(cellPhoto.absoluteString)) {
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": cellPhoto}];
+            NSString *u = extractUsernameFromObject(bestCell);
+            if (u) ret[@"username"] = u;
+            return ret;
         }
         
         NSURL *globalVideo = [self extractActiveVideoURLFromScreenWithLog:log];
         if (globalVideo) {
-            return @{@"type": @"video", @"url": globalVideo};
-        }
-
-        NSURL *cellPhoto = extractPhotoURLFromObject(bestCell);
-        if (cellPhoto && isStrictPhotoURL(cellPhoto.absoluteString)) {
-            return @{@"type": @"photo", @"url": cellPhoto};
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": globalVideo}];
+            NSString *u = extractUsernameFromObject(bestCell) ?: extractUsernameFromObject(gLastPlayingMediaObject);
+            if (u) ret[@"username"] = u;
+            return ret;
         }
     }
     

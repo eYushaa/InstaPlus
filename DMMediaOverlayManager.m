@@ -207,6 +207,89 @@
     return NO;
 }
 
+- (void)showSuccessAlert:(NSString *)title {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *keyWindow = nil;
+        for (UIWindow *w in [UIApplication sharedApplication].windows) {
+            if (w.isKeyWindow) { keyWindow = w; break; }
+        }
+        if (!keyWindow) keyWindow = [UIApplication sharedApplication].keyWindow;
+        
+        UIViewController *topController = keyWindow.rootViewController;
+        while (topController.presentedViewController) {
+            topController = topController.presentedViewController;
+        }
+        if ([topController isKindOfClass:[UINavigationController class]]) {
+            topController = [(UINavigationController *)topController topViewController];
+        }
+        if ([topController isKindOfClass:[UIAlertController class]]) return;
+        
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:nil preferredStyle:UIAlertControllerStyleAlert];
+        [topController presentViewController:alert animated:YES completion:nil];
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [alert dismissViewControllerAnimated:YES completion:nil];
+        });
+    });
+}
+
+- (void)handleFeedLongPress:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        UIView *view = gesture.view;
+        NSMutableString *debugLog = [NSMutableString string];
+        [debugLog appendFormat:@"[LongPress] Triggered on view: %@\n", NSStringFromClass([view class])];
+        
+        NSDictionary *ctx = [MediaExtractor extractMediaContextFromView:view withLog:debugLog];
+        if (ctx && ctx[@"url"]) {
+            NSURL *url = ctx[@"url"];
+            NSString *type = ctx[@"type"];
+            NSString *username = ctx[@"username"] ?: @"InstaPlus";
+            
+            [debugLog appendFormat:@"[LongPress] Extracted URL: %@\n", url.absoluteString];
+            NSLog(@"%@", debugLog);
+            
+            if ([type isEqualToString:@"photo"]) {
+                if ([url isKindOfClass:[NSURL class]]) {
+                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                        NSData *data = [NSData dataWithContentsOfURL:(NSURL *)url];
+                        UIImage *img = [UIImage imageWithData:data];
+                        BOOL success = NO;
+                        if (img) {
+                            success = [[LocalPhotoManager sharedManager] saveImage:img forUsername:username error:nil];
+                        }
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            if (success) {
+                                [self showSuccessAlert:@"📸 Fotoğraf İndirildi"];
+                            } else {
+                                [self showSuccessAlert:@"❌ İndirme Hatası"];
+                            }
+                        });
+                    });
+                } else if ([url isKindOfClass:[UIImage class]]) {
+                    [[LocalPhotoManager sharedManager] saveImage:(UIImage *)url forUsername:username error:nil];
+                    [self showSuccessAlert:@"📸 Fotoğraf İndirildi"];
+                }
+            } else if ([type isEqualToString:@"video"]) {
+                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                    NSError *bgError = nil;
+                    BOOL success = [[LocalPhotoManager sharedManager] saveVideoFromURL:url forUsername:username error:&bgError];
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        if (success) {
+                            [self showSuccessAlert:@"🎥 Video İndirildi"];
+                        } else {
+                            [self showSuccessAlert:@"❌ İndirme Hatası"];
+                        }
+                    });
+                });
+            }
+        } else {
+            [debugLog appendFormat:@"[LongPress] Failed to extract media.\n"];
+            NSLog(@"%@", debugLog);
+            [self showSuccessAlert:@"❌ Medya Bulunamadı"];
+        }
+    }
+}
+
 - (void)showAlertWithTitle:(NSString *)title message:(NSString *)msg {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *keyWindow = nil;

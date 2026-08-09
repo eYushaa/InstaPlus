@@ -11,6 +11,7 @@
 + (NSURL *)extractActiveVideoURLFromScreenWithLog:(NSMutableString *)log;
 + (NSDictionary *)extractActiveMediaContextFromScreen;
 + (NSDictionary *)extractActiveMediaContextFromScreenWithLog:(NSMutableString *)log;
++ (NSDictionary *)extractMediaContextFromView:(UIView *)view withLog:(NSMutableString *)log;
 
 // Exposed for Tweak.x to deeply extract URL from highly nested Instagram objects
 + (NSURL *)deepExtractURLFromObject:(id)obj;

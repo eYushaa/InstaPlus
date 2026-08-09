@@ -7,5 +7,6 @@
 - (void)hideOverlay;
 - (BOOL)saveCurrentActiveMediaWithToast:(BOOL)showToast;
 - (NSString *)detectActiveUsername;
+- (void)handleFeedLongPress:(UILongPressGestureRecognizer *)gesture;
 
 @end

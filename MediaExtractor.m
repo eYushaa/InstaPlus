@@ -753,7 +753,17 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
     
     UIView *bestCell = nil;
     if (keyWindow) {
-        bestCell = findBestCellFromHitTest(keyWindow, log);
+        UIViewController *topVC = keyWindow.rootViewController;
+        while (topVC.presentedViewController) {
+            topVC = topVC.presentedViewController;
+        }
+        if ([topVC isKindOfClass:[UINavigationController class]]) {
+            topVC = [(UINavigationController *)topVC topViewController];
+        }
+        
+        UIView *searchView = topVC.view ? topVC.view : keyWindow;
+        [log appendFormat:@"[MediaExtractor] Searching TopVC: %@\n", NSStringFromClass([topVC class])];
+        bestCell = findBestCellFromHitTest(searchView, log);
     }
     
     BOOL isVideoCell = NO;
@@ -855,6 +865,68 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
 + (NSDictionary *)extractActiveMediaContextFromScreen {
     NSMutableString *log = [NSMutableString string];
     return [self extractActiveMediaContextFromScreenWithLog:log];
+}
+
++ (NSDictionary *)extractMediaContextFromView:(UIView *)view withLog:(NSMutableString *)log {
+    if (!view) return nil;
+    
+    BOOL isVideoCell = NO;
+    BOOL isPhotoCell = NO;
+    NSInteger mediaType = detectMediaTypeFromCell(view);
+    if (mediaType == 1 || mediaType == 8) {
+        isPhotoCell = YES;
+    } else if (mediaType == 2) {
+        isVideoCell = YES;
+    } else {
+        NSString *cls = NSStringFromClass([view class]);
+        isVideoCell = [cls containsString:@"Video"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"];
+        isPhotoCell = [cls containsString:@"Photo"] || [cls containsString:@"Image"];
+    }
+    
+    if (isVideoCell) {
+        [log appendFormat:@"[MediaExtractor] Explicit VIDEO cell detected via LongPress.\n"];
+        NSURL *cellVideoURL = extractVideoURLFromObject(view, log);
+        if (cellVideoURL && isStrictVideoURL(cellVideoURL.absoluteString)) {
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": cellVideoURL}];
+            NSString *u = extractUsernameFromObject(view);
+            if (u) ret[@"username"] = u;
+            return ret;
+        }
+    } else if (isPhotoCell) {
+        [log appendFormat:@"[MediaExtractor] Explicit PHOTO cell detected via LongPress.\n"];
+        NSURL *photoURL = extractPhotoURLFromObject(view);
+        if (photoURL && isStrictPhotoURL(photoURL.absoluteString)) {
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": photoURL}];
+            NSString *u = extractUsernameFromObject(view);
+            if (u) ret[@"username"] = u;
+            return ret;
+        }
+        
+        NSURL *videoURL = extractVideoURLFromObject(view, log);
+        if (videoURL && isStrictVideoURL(videoURL.absoluteString)) {
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": videoURL}];
+            NSString *u = extractUsernameFromObject(view);
+            if (u) ret[@"username"] = u;
+            return ret;
+        }
+    } else {
+        NSURL *cellVideo = extractVideoURLFromObject(view, log);
+        if (cellVideo && isStrictVideoURL(cellVideo.absoluteString)) {
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": cellVideo}];
+            NSString *u = extractUsernameFromObject(view);
+            if (u) ret[@"username"] = u;
+            return ret;
+        }
+        
+        NSURL *cellPhoto = extractPhotoURLFromObject(view);
+        if (cellPhoto && isStrictPhotoURL(cellPhoto.absoluteString)) {
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": cellPhoto}];
+            NSString *u = extractUsernameFromObject(view);
+            if (u) ret[@"username"] = u;
+            return ret;
+        }
+    }
+    return nil;
 }
 
 @end

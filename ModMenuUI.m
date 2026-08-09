@@ -59,10 +59,15 @@ void ShowFloatingModMenu(void) {
             });
         } else if ([key isEqualToString:@"media_download_button_enabled"]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                Class managerClass = NSClassFromString(@"FloatingButtonManager");
+                Class managerClass = NSClassFromString(@"DMMediaOverlayManager");
                 if (managerClass) {
                     id shared = [managerClass performSelector:@selector(sharedManager)];
-                    [shared performSelector:@selector(updateVisibility)];
+                    BOOL enabled = sender.on;
+                    if (enabled) {
+                        [shared performSelector:@selector(showOverlayIfNeeded)];
+                    } else {
+                        [shared performSelector:@selector(hideOverlay)];
+                    }
                 }
             });
         }

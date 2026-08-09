@@ -48,11 +48,7 @@
         [self setupFloatingButton];
     }
     
-    BOOL enabled = YES;
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"media_download_button_enabled"]) {
-        enabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"media_download_button_enabled"];
-    }
-    self.floatingButton.hidden = !enabled;
+    self.floatingButton.hidden = NO;
     
     if (self.floatingButton.superview != window) {
         [self.floatingButton removeFromSuperview];
@@ -63,11 +59,7 @@
 
 - (void)updateVisibility {
     if (self.floatingButton) {
-        BOOL enabled = YES;
-        if ([[NSUserDefaults standardUserDefaults] objectForKey:@"media_download_button_enabled"]) {
-            enabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"media_download_button_enabled"];
-        }
-        self.floatingButton.hidden = !enabled;
+        self.floatingButton.hidden = NO;
     }
 }
 

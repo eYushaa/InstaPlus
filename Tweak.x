@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
+#import "MediaExtractor.h"
 #import "FloatingButtonManager.h"
 #import "FloatingVoiceButtonManager.h"
 #import "DMMediaOverlayManager.h"

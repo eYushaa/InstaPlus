@@ -19,7 +19,9 @@
 
 - (void)showOverlayIfNeeded {
     BOOL isEnabled = YES;
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"saveButtonEnabled"]) {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"media_download_button_enabled"]) {
+        isEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"media_download_button_enabled"];
+    } else if ([[NSUserDefaults standardUserDefaults] objectForKey:@"saveButtonEnabled"]) {
         isEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"saveButtonEnabled"];
     }
     if (!isEnabled) {
@@ -157,7 +159,7 @@
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (success) {
                     NSLog(@"[InstaPlus] Background video download SUCCESS");
-                    if (showToast) [self showAlertWithTitle:@"İndiriliyor" message:[NSString stringWithFormat:@"Video @%@ klasörüne kaydedildi.\n\nLOG:\n%@", username, debugLog]];
+                    if (showToast) [self showToast:[NSString stringWithFormat:@"Video @%@ klasörüne kaydedildi!", username]];
                 } else {
                     NSLog(@"[InstaPlus] Background video download FAILED. Error: %@", bgError);
                     if (showToast) [self showAlertWithTitle:@"İndirme Hatası" message:[NSString stringWithFormat:@"Video indirilemedi. Hata: %@\n\nLOG:\n%@", bgError.localizedDescription ?: @"Bilinmiyor", debugLog]];
@@ -208,7 +210,7 @@
         BOOL success = [[LocalPhotoManager sharedManager] saveImage:capturedMedia forUsername:username error:&error];
         if (success) {
             NSLog(@"[InstaPlus] Photo successfully saved to gallery");
-            if (showToast) [self showAlertWithTitle:@"Fotoğraf" message:[NSString stringWithFormat:@"Fotoğraf @%@ klasörüne kaydedildi!\n\nLOG:\n%@", username, debugLog]];
+            if (showToast) [self showToast:[NSString stringWithFormat:@"Fotoğraf @%@ klasörüne kaydedildi!", username]];
             return YES;
         } else {
             NSLog(@"[InstaPlus] Photo save failed. Error: %@", error);
@@ -228,47 +230,52 @@
         if (!keyWindow) keyWindow = [UIApplication sharedApplication].keyWindow;
         if (!keyWindow) return;
         
-        // KESİN ÇÖZÜM: UIAlertController yerine doğrudan Window üzerine View ekliyoruz.
-        // Çünkü Instagram'ın kendi view controller hiyerarşisi Alert'leri engelliyor olabilir!
+        // Önceki overlay varsa kaldır
+        UIView *old = [keyWindow viewWithTag:99998888];
+        if (old) [old removeFromSuperview];
+        
         UIView *overlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
-        overlay.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.85];
+        overlay.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.65];
         overlay.tag = 99998888;
         
-        UIView *box = [[UIView alloc] initWithFrame:CGRectMake(20, 60, keyWindow.bounds.size.width - 40, keyWindow.bounds.size.height - 120)];
-        box.backgroundColor = [UIColor whiteColor];
-        box.layer.cornerRadius = 12;
+        // KLASİK iOS ALERT BOYUTU (Şık, Derli Toplu Modal)
+        CGFloat cardW = MIN(keyWindow.bounds.size.width - 60, 320);
+        CGFloat cardH = 270;
+        CGRect cardFrame = CGRectMake((keyWindow.bounds.size.width - cardW) / 2.0, (keyWindow.bounds.size.height - cardH) / 2.0, cardW, cardH);
+        
+        UIView *box = [[UIView alloc] initWithFrame:cardFrame];
+        box.backgroundColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.18 alpha:0.98];
+        box.layer.cornerRadius = 16;
+        box.layer.shadowColor = [UIColor blackColor].CGColor;
+        box.layer.shadowOpacity = 0.5;
+        box.layer.shadowRadius = 10;
         box.clipsToBounds = YES;
         [overlay addSubview:box];
         
-        UILabel *titleLbl = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, box.bounds.size.width - 20, 30)];
+        UILabel *titleLbl = [[UILabel alloc] initWithFrame:CGRectMake(15, 14, cardW - 30, 24)];
         titleLbl.text = title;
-        titleLbl.font = [UIFont boldSystemFontOfSize:18];
-        titleLbl.textColor = [UIColor blackColor];
+        titleLbl.font = [UIFont boldSystemFontOfSize:17];
+        titleLbl.textColor = [UIColor whiteColor];
         titleLbl.textAlignment = NSTextAlignmentCenter;
         [box addSubview:titleLbl];
         
-        UITextView *tv = [[UITextView alloc] initWithFrame:CGRectMake(10, 50, box.bounds.size.width - 20, box.bounds.size.height - 110)];
+        UITextView *tv = [[UITextView alloc] initWithFrame:CGRectMake(12, 44, cardW - 24, cardH - 100)];
         tv.text = msg;
-        tv.font = [UIFont systemFontOfSize:12];
-        tv.textColor = [UIColor darkGrayColor];
+        tv.font = [UIFont systemFontOfSize:12 weight:UIFontWeightRegular];
+        tv.textColor = [UIColor colorWithWhite:0.85 alpha:1.0];
+        tv.backgroundColor = [UIColor colorWithWhite:0.08 alpha:0.8];
+        tv.layer.cornerRadius = 8;
         tv.editable = NO;
         [box addSubview:tv];
         
         UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-        closeBtn.frame = CGRectMake(10, box.bounds.size.height - 50, box.bounds.size.width/2 - 15, 40);
-        [closeBtn setTitle:@"Kapat" forState:UIControlStateNormal];
+        closeBtn.frame = CGRectMake(0, cardH - 46, cardW, 46);
+        [closeBtn setTitle:@"Tamam" forState:UIControlStateNormal];
+        closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
+        [closeBtn setTitleColor:[UIColor colorWithRed:0.2 green:0.6 blue:1.0 alpha:1.0] forState:UIControlStateNormal];
+        closeBtn.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
         [closeBtn addTarget:self action:@selector(dismissCustomAlert:) forControlEvents:UIControlEventTouchUpInside];
         [box addSubview:closeBtn];
-        
-        UIButton *copyBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-        copyBtn.frame = CGRectMake(box.bounds.size.width/2 + 5, box.bounds.size.height - 50, box.bounds.size.width/2 - 15, 40);
-        [copyBtn setTitle:@"Kopyala" forState:UIControlStateNormal];
-        // Kopyalama işlemi için inline block kullanamayacağımızdan basitçe UIPasteboard kullanıp butona basılınca halledecek bir selector ekleyeceğiz.
-        // Ama objc'de runtime block eklemek zor. En iyisi objc_setAssociatedObject veya özel bir alt sınıf.
-        // Şimdilik sadece Kapat butonu kalsın. Kopyalama çok mühim değil, SS alabilirler.
-        copyBtn.hidden = YES;
-        
-        closeBtn.frame = CGRectMake(10, box.bounds.size.height - 50, box.bounds.size.width - 20, 40);
         
         [keyWindow addSubview:overlay];
     });

@@ -555,34 +555,8 @@ static NSURL *extractVideoURLFromObject(id obj, NSMutableString *log) {
     return extractVideoURLFromObjectInternal(obj, 0, visited, dummyLog, -1);
 }
 
-static UIViewController *getTopViewController(UIViewController *rootViewController) {
-    if (!rootViewController) {
-        UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-        if (!keyWindow) {
-            for (UIWindow *w in [UIApplication sharedApplication].windows) {
-                if (w.isKeyWindow) { keyWindow = w; break; }
-            }
-        }
-        rootViewController = keyWindow.rootViewController;
-    }
-    
-    if ([rootViewController isKindOfClass:[UITabBarController class]]) {
-        UITabBarController *tabBarController = (UITabBarController *)rootViewController;
-        return getTopViewController(tabBarController.selectedViewController);
-    } else if ([rootViewController isKindOfClass:[UINavigationController class]]) {
-        UINavigationController *navigationController = (UINavigationController *)rootViewController;
-        return getTopViewController(navigationController.visibleViewController);
-    } else if (rootViewController.presentedViewController) {
-        return getTopViewController(rootViewController.presentedViewController);
-    } else if (rootViewController.childViewControllers.count > 0) {
-        return getTopViewController(rootViewController.childViewControllers.lastObject);
-    }
-    
-    return rootViewController;
-}
-
 + (NSURL *)extractActiveVideoURLFromScreenWithLog:(NSMutableString *)log {
-    [log appendFormat:@"[MediaExtractor] Running 6-Step Video Engine...\n"];
+    [log appendFormat:@"[MediaExtractor] Running Active Video Engine...\n"];
     
     UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
     if (!keyWindow) {
@@ -601,18 +575,9 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
         }
     }
     
-    UIViewController *topVC = getTopViewController(nil);
-    if (topVC) {
-        NSURL *modelURL = extractVideoURLFromObject(topVC, log);
-        if (modelURL) {
-            [log appendFormat:@"[Step 2] Found video URL from Top VC!\n"];
-            return modelURL;
-        }
-    }
-    
     if (gLastPlayingVideoURL && (now - gLastPlayingVideoTime < 5.0)) {
         if (![gLastPlayingVideoURL isFileURL]) {
-            [log appendFormat:@"[Step 3] Found video URL from hook live URL!\n"];
+            [log appendFormat:@"[Step 2] Found video URL from hook live URL!\n"];
             return gLastPlayingVideoURL;
         }
     }
@@ -622,59 +587,11 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
         CGFloat minDist = CGFLOAT_MAX;
         traverseHierarchyForActivePlayer(keyWindow, &playerURL, &minDist, log);
         if (playerURL && ![playerURL isFileURL]) {
-            [log appendFormat:@"[Step 4] Found video URL from visible player layer!\n"];
+            [log appendFormat:@"[Step 3] Found video URL from visible player layer!\n"];
             return playerURL;
         }
     }
     
-    [log appendFormat:@"[Step 5] Scanning disk cache for full .mp4 video files...\n"];
-    NSArray *searchPaths = @[
-        NSTemporaryDirectory(),
-        [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject]
-    ];
-    NSFileManager *fm = [NSFileManager defaultManager];
-    NSURL *newestVideoURL = nil;
-    NSTimeInterval freshestAge = 30.0;
-    
-    for (NSString *basePath in searchPaths) {
-        NSDirectoryEnumerator *enumerator = [fm enumeratorAtURL:[NSURL fileURLWithPath:basePath]
-                                     includingPropertiesForKeys:@[NSURLContentModificationDateKey, NSURLIsDirectoryKey, NSURLFileSizeKey]
-                                                         options:NSDirectoryEnumerationSkipsHiddenFiles
-                                                    errorHandler:nil];
-        for (NSURL *fileURL in enumerator) {
-            NSNumber *isDirectory;
-            [fileURL getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
-            if ([isDirectory boolValue]) continue;
-            
-            NSString *fileName = fileURL.lastPathComponent.lowercaseString;
-            if ([fileName containsString:@"stream_"] || [fileName hasPrefix:@"chunk_"]) continue;
-            
-            if ([fileName hasSuffix:@".mp4"]) {
-                NSDate *modDate;
-                [fileURL getResourceValue:&modDate forKey:NSURLContentModificationDateKey error:nil];
-                if (!modDate) continue;
-                
-                NSTimeInterval age = [[NSDate date] timeIntervalSinceDate:modDate];
-                if (age < 30.0) {
-                    NSNumber *fileSize;
-                    [fileURL getResourceValue:&fileSize forKey:NSURLFileSizeKey error:nil];
-                    if (fileSize.longLongValue > 1500000) { 
-                        if (age < freshestAge) {
-                            freshestAge = age;
-                            newestVideoURL = fileURL;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    if (newestVideoURL) {
-        [log appendFormat:@"[Step 5] Found video file in disk cache!\n"];
-        return newestVideoURL;
-    }
-    
-    [log appendFormat:@"[VideoEngine] All video extraction steps returned nil.\n"];
     return nil;
 }
 

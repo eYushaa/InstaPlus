@@ -1,0 +1,9 @@
+Package: com.egitim.instaplus
+Name: InstaPlus
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Eğitim amaçlı iOS modlama projesi
+Maintainer: Egitim
+Author: Egitim
+Section: Tweaks

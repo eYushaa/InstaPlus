@@ -1,0 +1,424 @@
+#import "MediaExtractor.h"
+#import <AVFoundation/AVFoundation.h>
+#import <objc/runtime.h>
+
+@implementation MediaExtractor
+
+static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestImageView, CGFloat *maxArea) {
+    if ([view isKindOfClass:[UIImageView class]]) {
+        UIImageView *imageView = (UIImageView *)view;
+        if (imageView.image) {
+            CGFloat area = imageView.bounds.size.width * imageView.bounds.size.height;
+            if (area > *maxArea && area > 10000) {
+                *maxArea = area;
+                *largestImageView = imageView;
+            }
+        }
+    }
+    for (UIView *subview in view.subviews) traverseViewHierarchy(subview, largestImageView, maxArea);
+}
+
++ (UIImage *)extractLargestImageFromScreen {
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) {
+        for (UIWindow *w in [UIApplication sharedApplication].windows) if (w.isKeyWindow) { keyWindow = w; break; }
+    }
+    if (!keyWindow) return nil;
+    
+    UIImageView *largestImageView = nil;
+    CGFloat maxArea = 0;
+    traverseViewHierarchy(keyWindow, &largestImageView, &maxArea);
+    if (largestImageView && largestImageView.image) return largestImageView.image;
+    
+    UIGraphicsBeginImageContextWithOptions(keyWindow.bounds.size, YES, [UIScreen mainScreen].scale);
+    [keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
+    UIImage *snapshot = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return snapshot;
+}
+
+extern NSURL *gLastPlayingVideoURL;
+extern id gLastPlayingMediaObject;
+extern NSTimeInterval gLastPlayingVideoTime;
+
++ (NSURL *)extractActiveVideoURLFromScreen {
+    NSMutableString *dummyLog = [NSMutableString string];
+    return [self extractActiveVideoURLFromScreenWithLog:dummyLog];
+}
+
+static NSURL *extractURLFromPlayerLayer(CALayer *layer, NSMutableString *log) {
+    if (!layer) return nil;
+    if ([layer isKindOfClass:[AVPlayerLayer class]]) {
+        AVPlayerLayer *playerLayer = (AVPlayerLayer *)layer;
+        AVPlayerItem *item = playerLayer.player.currentItem;
+        if ([item.asset isKindOfClass:[AVURLAsset class]]) {
+            NSURL *url = [(AVURLAsset *)item.asset URL];
+            if (url && [url.absoluteString hasPrefix:@"http"] && ![url.absoluteString containsString:@"oil_"]) {
+                [log appendFormat:@"[PlayerLayer] Found AVURLAsset URL: %@\n", url.lastPathComponent];
+                return url;
+            }
+        }
+    }
+    NSString *layerClass = NSStringFromClass([layer class]);
+    if ([layerClass containsString:@"FNF"] || [layerClass containsString:@"Video"] || [layerClass containsString:@"Player"]) {
+        NSArray *props = @[@"player", @"asset", @"representation", @"url", @"videoURL", @"currentURL", @"streamURL"];
+        for (NSString *p in props) {
+            @try {
+                id val = [layer valueForKey:p];
+                if ([val isKindOfClass:[NSURL class]]) {
+                    NSURL *u = (NSURL *)val;
+                    if (![u.absoluteString containsString:@"oil_"]) { [log appendFormat:@"[FNFLayer] Found NSURL in '%@'\n", p]; return u; }
+                } else if ([val isKindOfClass:[NSString class]] && [(NSString *)val hasPrefix:@"http"]) {
+                    NSString *s = (NSString *)val;
+                    if (![s containsString:@"oil_"]) { [log appendFormat:@"[FNFLayer] Found String URL in '%@'\n", p]; return [NSURL URLWithString:s]; }
+                }
+            } @catch(NSException *e) {}
+        }
+    }
+    return nil;
+}
+
+static void traverseHierarchyForActivePlayer(UIView *view, NSURL * __strong *bestURL, CGFloat *minDist, NSMutableString *log) {
+    if (!view || view.isHidden || view.alpha < 0.05) return;
+    CGRect screenBounds = [UIScreen mainScreen].bounds;
+    CGPoint screenCenter = CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height / 2.0);
+    CGRect globalFrame = [view convertRect:view.bounds toView:nil];
+    CGRect intersection = CGRectIntersection(globalFrame, screenBounds);
+    if (!CGRectIsNull(intersection) && intersection.size.height > 100) {
+        CGFloat viewCenterY = globalFrame.origin.y + globalFrame.size.height / 2.0;
+        CGFloat dist = fabs(viewCenterY - screenCenter.y);
+        if (view.layer.sublayers) {
+            for (CALayer *layer in view.layer.sublayers) {
+                if ([layer isKindOfClass:[AVPlayerLayer class]]) {
+                    AVPlayerLayer *playerLayer = (AVPlayerLayer *)layer;
+                    AVPlayer *player = playerLayer.player;
+                    BOOL isPlaying = (player && player.rate > 0.01);
+                    AVPlayerItem *item = player.currentItem;
+                    if ([item.asset isKindOfClass:[AVURLAsset class]]) {
+                        NSURL *url = [(AVURLAsset *)item.asset URL];
+                        if (url && [url.absoluteString hasPrefix:@"http"] && ![url.absoluteString containsString:@"oil_"]) {
+                            CGFloat effectiveDist = isPlaying ? (dist * 0.1) : dist;
+                            if (effectiveDist < *minDist) { *minDist = effectiveDist; *bestURL = url; }
+                        }
+                    }
+                } else {
+                    NSURL *found = extractURLFromPlayerLayer(layer, log);
+                    if (found && dist < *minDist) { *minDist = dist; *bestURL = found; }
+                }
+            }
+        }
+    }
+    for (UIView *subview in view.subviews) traverseHierarchyForActivePlayer(subview, bestURL, minDist, log);
+}
+
+static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects, NSMutableString *log) {
+    if (!obj || depth > 4) return nil;
+    if ([visitedObjects containsObject:obj]) return nil;
+    [visitedObjects addObject:obj];
+    
+    @try {
+        id urlsObj = [obj valueForKey:@"allVideoURLs"];
+        if ([urlsObj isKindOfClass:[NSSet class]] && [(NSSet *)urlsObj count] > 0) {
+            for (id u in (NSSet *)urlsObj) {
+                if ([u isKindOfClass:[NSURL class]]) {
+                    NSString *str = [(NSURL *)u absoluteString];
+                    if (![str containsString:@"oil_"] && ![str containsString:@".m3u8"]) return (NSURL *)u;
+                }
+            }
+        }
+        id sortedObj = [obj valueForKey:@"sortedVideoURLsBySize"];
+        if ([sortedObj isKindOfClass:[NSArray class]] && [(NSArray *)sortedObj count] > 0) {
+            id first = [(NSArray *)sortedObj firstObject];
+            if ([first isKindOfClass:[NSDictionary class]]) {
+                id u = first[@"url"];
+                if ([u isKindOfClass:[NSString class]] && [(NSString *)u hasPrefix:@"http"]) return [NSURL URLWithString:(NSString *)u];
+            }
+        }
+    } @catch(NSException *e) {}
+
+    NSArray *versionPropNames = @[@"videoVersions", @"video_versions", @"videoUrls", @"typed_video_urls", @"video_versions_dict"];
+    for (NSString *propName in versionPropNames) {
+        @try {
+            id versions = [obj valueForKey:propName];
+            if ([versions isKindOfClass:[NSArray class]] && [(NSArray *)versions count] > 0) {
+                NSURL *bestURL = nil; NSInteger maxArea = -1;
+                for (id ver in (NSArray *)versions) {
+                    NSURL *candURL = nil; NSInteger w = 0, h = 0;
+                    if ([ver isKindOfClass:[NSDictionary class]]) {
+                        NSDictionary *dict = (NSDictionary *)ver;
+                        id u = dict[@"url"] ?: dict[@"videoURL"] ?: dict[@"src"];
+                        if ([u isKindOfClass:[NSString class]]) candURL = [NSURL URLWithString:(NSString *)u];
+                        else if ([u isKindOfClass:[NSURL class]]) candURL = (NSURL *)u;
+                        w = [dict[@"width"] integerValue]; h = [dict[@"height"] integerValue];
+                    } else {
+                        @try {
+                            id u = [ver valueForKey:@"url"] ?: [ver valueForKey:@"videoURL"];
+                            if ([u isKindOfClass:[NSString class]]) candURL = [NSURL URLWithString:(NSString *)u];
+                            else if ([u isKindOfClass:[NSURL class]]) candURL = (NSURL *)u;
+                            w = [[ver valueForKey:@"width"] integerValue]; h = [[ver valueForKey:@"height"] integerValue];
+                        } @catch(NSException *e) {}
+                    }
+                    if (candURL) {
+                        NSString *str = candURL.absoluteString;
+                        BOOL isChunked = [str containsString:@"oil_"] || [str containsString:@".m3u8"];
+                        if (!isChunked) {
+                            NSInteger area = w * h;
+                            if (area > maxArea) { maxArea = area; bestURL = candURL; }
+                            else if (!bestURL) { bestURL = candURL; }
+                        }
+                    }
+                }
+                if (bestURL) return bestURL;
+            }
+        } @catch(NSException *e) {}
+    }
+    
+    NSArray *subObjNames = @[@"video", @"media", @"feedItem", @"currentMedia", @"currentClipsItem", @"currentItem", @"item", @"post", @"videoSpec", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage"];
+    for (NSString *subName in subObjNames) {
+        @try {
+            id subObj = [obj valueForKey:subName];
+            if (subObj && subObj != obj) {
+                NSURL *found = extractVideoURLFromObjectInternal(subObj, depth + 1, visitedObjects, log);
+                if (found) return found;
+            }
+        } @catch(NSException *e) {}
+    }
+
+    NSArray *urlPropNames = @[@"videoURL", @"videoUrl", @"mediaURL", @"url", @"playbackURL", @"video_url", @"hdVideoURL"];
+    for (NSString *propName in urlPropNames) {
+        @try {
+            id val = [obj valueForKey:propName];
+            if ([val isKindOfClass:[NSURL class]]) {
+                NSString *str = [(NSURL *)val absoluteString];
+                if ([str hasPrefix:@"http"] && ![str containsString:@"oil_"]) return (NSURL *)val;
+            } else if ([val isKindOfClass:[NSString class]]) {
+                NSString *str = (NSString *)val;
+                if ([str hasPrefix:@"http"] && ([str containsString:@".mp4"] || [str containsString:@"/v/t"] || [str containsString:@"cdninstagram"]) && ![str containsString:@"oil_"]) {
+                    return [NSURL URLWithString:str];
+                }
+            }
+        } @catch(NSException *e) {}
+    }
+
+    if ([obj isKindOfClass:[NSArray class]] || [obj isKindOfClass:[NSSet class]]) {
+        for (id item in (id<NSFastEnumeration>)obj) {
+            NSURL *found = extractVideoURLFromObjectInternal(item, depth + 1, visitedObjects, log);
+            if (found) return found;
+        }
+    }
+    return nil;
+}
+
+static NSURL *extractVideoURLFromObject(id obj, NSMutableString *log) {
+    NSMutableSet *visited = [NSMutableSet set];
+    return extractVideoURLFromObjectInternal(obj, 0, visited, log);
+}
+
+// NEW HELPER: Extract Username
+static NSString *extractUsernameFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects) {
+    if (!obj || depth > 4) return nil;
+    if ([visitedObjects containsObject:obj]) return nil;
+    [visitedObjects addObject:obj];
+    
+    @try {
+        id user = [obj valueForKey:@"user"];
+        if (user) {
+            id username = [user valueForKey:@"username"];
+            if ([username isKindOfClass:[NSString class]] && [(NSString *)username length] > 0) {
+                return (NSString *)username;
+            }
+        }
+    } @catch(NSException *e) {}
+    
+    NSArray *subObjNames = @[@"video", @"media", @"feedItem", @"currentMedia", @"currentClipsItem", @"currentItem", @"item", @"post", @"videoSpec", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage"];
+    for (NSString *subName in subObjNames) {
+        @try {
+            id subObj = [obj valueForKey:subName];
+            if (subObj && subObj != obj) {
+                NSString *found = extractUsernameFromObjectInternal(subObj, depth + 1, visitedObjects);
+                if (found) return found;
+            }
+        } @catch(NSException *e) {}
+    }
+    
+    if ([obj isKindOfClass:[NSArray class]] || [obj isKindOfClass:[NSSet class]]) {
+        for (id item in (id<NSFastEnumeration>)obj) {
+            NSString *found = extractUsernameFromObjectInternal(item, depth + 1, visitedObjects);
+            if (found) return found;
+        }
+    }
+    return nil;
+}
+
+static NSString *extractUsernameFromObject(id obj) {
+    NSMutableSet *visited = [NSMutableSet set];
+    return extractUsernameFromObjectInternal(obj, 0, visited);
+}
+
+// NEW HELPER: Extract High-Res Photo URL
+static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects) {
+    if (!obj || depth > 4) return nil;
+    if ([visitedObjects containsObject:obj]) return nil;
+    [visitedObjects addObject:obj];
+    
+    @try {
+        id imageVersions = [obj valueForKey:@"imageVersions2"] ?: [obj valueForKey:@"image_versions2"];
+        if (imageVersions) {
+            id candidates = [imageVersions valueForKey:@"candidates"];
+            if ([candidates isKindOfClass:[NSArray class]] && [(NSArray *)candidates count] > 0) {
+                id bestCand = [(NSArray *)candidates firstObject];
+                id u = [bestCand valueForKey:@"url"];
+                if ([u isKindOfClass:[NSString class]]) return [NSURL URLWithString:(NSString *)u];
+                if ([u isKindOfClass:[NSURL class]]) return (NSURL *)u;
+            }
+        }
+    } @catch(NSException *e) {}
+    
+    NSArray *subObjNames = @[@"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage"];
+    for (NSString *subName in subObjNames) {
+        @try {
+            id subObj = [obj valueForKey:subName];
+            if (subObj && subObj != obj) {
+                NSURL *found = extractPhotoURLFromObjectInternal(subObj, depth + 1, visitedObjects);
+                if (found) return found;
+            }
+        } @catch(NSException *e) {}
+    }
+    
+    if ([obj isKindOfClass:[NSArray class]] || [obj isKindOfClass:[NSSet class]]) {
+        for (id item in (id<NSFastEnumeration>)obj) {
+            NSURL *found = extractPhotoURLFromObjectInternal(item, depth + 1, visitedObjects);
+            if (found) return found;
+        }
+    }
+    return nil;
+}
+
+static NSURL *extractPhotoURLFromObject(id obj) {
+    NSMutableSet *visited = [NSMutableSet set];
+    return extractPhotoURLFromObjectInternal(obj, 0, visited);
+}
+
+static void searchVisibleCellsForMediaContext(UIView *view, NSDictionary * __strong *foundContext, CGFloat *minDist, NSMutableString *log) {
+    if (!view) return;
+    
+    CGRect screenBounds = [UIScreen mainScreen].bounds;
+    CGPoint screenCenter = CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height / 2.0);
+    
+    void (^processCell)(UIView *cell) = ^(UIView *cell) {
+        CGRect cellFrame = [cell convertRect:cell.bounds toView:nil];
+        CGRect intersect = CGRectIntersection(cellFrame, screenBounds);
+        if (!CGRectIsNull(intersect) && intersect.size.height > 100) {
+            CGFloat cellCenterY = cellFrame.origin.y + cellFrame.size.height / 2.0;
+            CGFloat dist = fabs(cellCenterY - screenCenter.y);
+            if (dist < *minDist) {
+                NSURL *videoURL = extractVideoURLFromObject(cell, log);
+                NSURL *photoURL = extractPhotoURLFromObject(cell);
+                NSString *username = extractUsernameFromObject(cell);
+                
+                if (videoURL || photoURL) {
+                    *minDist = dist;
+                    NSMutableDictionary *ctx = [NSMutableDictionary dictionary];
+                    if (videoURL) {
+                        ctx[@"url"] = videoURL;
+                        ctx[@"type"] = @"video";
+                    } else if (photoURL) {
+                        ctx[@"url"] = photoURL;
+                        ctx[@"type"] = @"photo";
+                    }
+                    if (username) ctx[@"username"] = username;
+                    *foundContext = ctx;
+                }
+            }
+        }
+    };
+    
+    if ([view isKindOfClass:[UICollectionView class]]) {
+        UICollectionView *cv = (UICollectionView *)view;
+        for (UICollectionViewCell *cell in cv.visibleCells) processCell(cell);
+    } else if ([view isKindOfClass:[UITableView class]]) {
+        UITableView *tv = (UITableView *)view;
+        for (UITableViewCell *cell in tv.visibleCells) processCell(cell);
+    }
+    
+    for (UIView *sub in view.subviews) {
+        searchVisibleCellsForMediaContext(sub, foundContext, minDist, log);
+    }
+}
+
++ (NSDictionary *)extractActiveMediaContextFromScreen {
+    NSMutableString *log = [NSMutableString string];
+    return [self extractActiveMediaContextFromScreenWithLog:log];
+}
+
++ (NSDictionary *)extractActiveMediaContextFromScreenWithLog:(NSMutableString *)log {
+    [log appendFormat:@"[MediaExtractor] Starting Contextual Media Extraction...\n"];
+    
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) {
+        for (UIWindow *w in [UIApplication sharedApplication].windows) {
+            if (w.isKeyWindow) { keyWindow = w; break; }
+        }
+    }
+    
+    NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+    
+    // 1. ADIM: Aktif olarak oynatilan videoyu ve kullanıcıyı hook'tan al
+    if (gLastPlayingMediaObject && (now - gLastPlayingVideoTime < 120.0)) {
+        NSURL *progURL = extractVideoURLFromObject(gLastPlayingMediaObject, log);
+        NSString *username = extractUsernameFromObject(gLastPlayingMediaObject);
+        if (progURL) {
+            NSMutableDictionary *ctx = [NSMutableDictionary dictionary];
+            ctx[@"url"] = progURL;
+            ctx[@"type"] = @"video";
+            if (username) ctx[@"username"] = username;
+            return ctx;
+        }
+    }
+    
+    // 2. ADIM: Ekranda merkezde olan hucreyi tarama (Reels/Feed Photo&Video/Stories)
+    if (keyWindow) {
+        NSDictionary *cellContext = nil;
+        CGFloat minDist = CGFLOAT_MAX;
+        searchVisibleCellsForMediaContext(keyWindow, &cellContext, &minDist, log);
+        if (cellContext) {
+            [log appendFormat:@"[Success] Found context from visible cell\n"];
+            return cellContext;
+        }
+    }
+    
+    // 3. ADIM: Ekranda oynatilan AVPlayerLayer veya FNFPlayerLayer'dan sadece video linki al
+    if (gLastPlayingVideoURL && (now - gLastPlayingVideoTime < 120.0)) {
+        if (![gLastPlayingVideoURL isFileURL] && ![gLastPlayingVideoURL.absoluteString containsString:@"oil_"]) {
+            return @{@"url": gLastPlayingVideoURL, @"type": @"video"};
+        }
+    }
+    
+    if (keyWindow) {
+        NSURL *playerURL = nil;
+        CGFloat minDist = CGFLOAT_MAX;
+        traverseHierarchyForActivePlayer(keyWindow, &playerURL, &minDist, log);
+        if (playerURL && ![playerURL isFileURL] && ![playerURL.absoluteString containsString:@"oil_"]) {
+            return @{@"url": playerURL, @"type": @"video"};
+        }
+    }
+    
+    // 4. ADIM: Hicbir URL bulunamadiysa, fallback olarak ekrandaki en buyuk fotografi al (Context'te image dondur)
+    UIImage *largestImage = [self extractLargestImageFromScreen];
+    if (largestImage) {
+        return @{@"image": largestImage, @"type": @"photo"};
+    }
+    
+    [log appendFormat:@"All contextual extraction methods failed.\n"];
+    return nil;
+}
+
++ (NSURL *)extractActiveVideoURLFromScreenWithLog:(NSMutableString *)log {
+    NSDictionary *ctx = [self extractActiveMediaContextFromScreenWithLog:log];
+    if (ctx && [ctx[@"type"] isEqualToString:@"video"]) {
+        return ctx[@"url"];
+    }
+    return nil;
+}
+
+@end

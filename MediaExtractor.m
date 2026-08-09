@@ -679,14 +679,55 @@ static NSString *extractUsernameFromObject(id obj) {
 
 static NSInteger calculateCarouselIndex(UIView *cell) {
     if (!cell) return -1;
+    
+    UICollectionView *horizontalCV = nil;
     UIView *v = cell;
-    while (v && ![v isKindOfClass:[UICollectionView class]]) {
+    
+    // 1. Search UP for a horizontal collection view (if we are in a deep photo cell)
+    while (v) {
+        if ([v isKindOfClass:[UICollectionView class]]) {
+            UICollectionView *tempCV = (UICollectionView *)v;
+            if ([tempCV.collectionViewLayout isKindOfClass:[UICollectionViewFlowLayout class]]) {
+                if ([(UICollectionViewFlowLayout *)tempCV.collectionViewLayout scrollDirection] == UICollectionViewScrollDirectionHorizontal) {
+                    horizontalCV = tempCV;
+                    break;
+                }
+            }
+        }
         v = v.superview;
     }
-    if ([v isKindOfClass:[UICollectionView class]]) {
-        UICollectionView *cv = (UICollectionView *)v;
-        CGFloat offsetX = cv.contentOffset.x;
-        CGFloat width = cv.bounds.size.width;
+    
+    // 2. Search DOWN (shallow) for a horizontal collection view (if we are in IGFeedItemCell wrapper)
+    if (!horizontalCV) {
+        for (UIView *sub in cell.subviews) {
+            if ([sub isKindOfClass:[UICollectionView class]]) {
+                UICollectionView *tempCV = (UICollectionView *)sub;
+                if ([tempCV.collectionViewLayout isKindOfClass:[UICollectionViewFlowLayout class]]) {
+                    if ([(UICollectionViewFlowLayout *)tempCV.collectionViewLayout scrollDirection] == UICollectionViewScrollDirectionHorizontal) {
+                        horizontalCV = tempCV;
+                        break;
+                    }
+                }
+            } else {
+                for (UIView *sub2 in sub.subviews) {
+                    if ([sub2 isKindOfClass:[UICollectionView class]]) {
+                        UICollectionView *tempCV = (UICollectionView *)sub2;
+                        if ([tempCV.collectionViewLayout isKindOfClass:[UICollectionViewFlowLayout class]]) {
+                            if ([(UICollectionViewFlowLayout *)tempCV.collectionViewLayout scrollDirection] == UICollectionViewScrollDirectionHorizontal) {
+                                horizontalCV = tempCV;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (horizontalCV) break;
+        }
+    }
+    
+    if (horizontalCV) {
+        CGFloat offsetX = horizontalCV.contentOffset.x;
+        CGFloat width = horizontalCV.bounds.size.width;
         if (width > 0) {
             return (NSInteger)round(offsetX / width);
         }
@@ -843,15 +884,9 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             if (u) ret[@"username"] = u;
             return ret;
         }
-        
-        NSURL *globalVideo = [self extractActiveVideoURLFromScreenWithLog:log];
-        if (globalVideo) {
-            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": globalVideo}];
-            NSString *u = extractUsernameFromObject(bestCell) ?: extractUsernameFromObject(gLastPlayingMediaObject);
-            if (u) ret[@"username"] = u;
-            return ret;
-        }
     }
+    
+    // 3. Fallback: Take a screenshot if everything fails
     
     UIImage *largestImage = [self extractLargestImageFromScreen];
     if (largestImage) {

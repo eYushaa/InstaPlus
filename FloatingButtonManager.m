@@ -42,31 +42,6 @@
         return;
     }
     
-    // Auto-hide on Main Feed (Ana Akis) because of multiple posts overlapping.
-    // The user will use the 3-dots menu for the Main Feed.
-    UIViewController *topVC = window.rootViewController;
-    while (topVC.presentedViewController) {
-        topVC = topVC.presentedViewController;
-    }
-    if ([topVC isKindOfClass:[UINavigationController class]]) {
-        topVC = [(UINavigationController *)topVC topViewController];
-    }
-    
-    NSString *vcClass = NSStringFromClass([topVC class]);
-    BOOL isMainFeed = [vcClass containsString:@"MainFeed"] || [vcClass isEqualToString:@"IGFeedViewController"];
-    
-    if (self.floatingButton) {
-        if (isMainFeed) {
-            self.floatingButton.hidden = YES;
-        } else {
-            self.floatingButton.hidden = NO;
-        }
-    }
-    
-    if (isMainFeed) {
-        return;
-    }
-    
     self.currentWindow = window;
     
     if (!self.floatingButton) {
@@ -84,21 +59,6 @@
 
 - (void)updateVisibility {
     if (self.floatingButton) {
-        // Evaluate visibility again
-        if (self.currentWindow) {
-            UIViewController *topVC = self.currentWindow.rootViewController;
-            while (topVC.presentedViewController) {
-                topVC = topVC.presentedViewController;
-            }
-            if ([topVC isKindOfClass:[UINavigationController class]]) {
-                topVC = [(UINavigationController *)topVC topViewController];
-            }
-            NSString *vcClass = NSStringFromClass([topVC class]);
-            if ([vcClass containsString:@"MainFeed"] || [vcClass isEqualToString:@"IGFeedViewController"]) {
-                self.floatingButton.hidden = YES;
-                return;
-            }
-        }
         self.floatingButton.hidden = NO;
     }
 }

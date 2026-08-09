@@ -869,6 +869,47 @@ static NSURL *extractPhotoURLFromObject(id obj) {
     return extractPhotoURLFromObjectInternal(obj, 0, visited, idx);
 }
 
+static UIImage *extractImageFromViewHierarchy(UIView *view) {
+    if (!view) return nil;
+    
+    UIImageView *largestImageView = nil;
+    CGFloat maxArea = 0;
+    
+    NSMutableArray *queue = [NSMutableArray arrayWithObject:view];
+    while (queue.count > 0) {
+        UIView *v = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+        
+        if ([v isKindOfClass:[UIImageView class]]) {
+            UIImageView *iv = (UIImageView *)v;
+            if (iv.image && iv.image.size.width > 100 && iv.image.size.height > 100) {
+                CGFloat area = iv.bounds.size.width * iv.bounds.size.height;
+                if (area > maxArea) {
+                    maxArea = area;
+                    largestImageView = iv;
+                }
+            }
+        }
+        if (v.subviews.count > 0) {
+            [queue addObjectsFromArray:v.subviews];
+        }
+    }
+    
+    if (largestImageView && largestImageView.image) {
+        return largestImageView.image;
+    }
+    
+    if (view.bounds.size.width > 50 && view.bounds.size.height > 50) {
+        UIGraphicsBeginImageContextWithOptions(view.bounds.size, YES, [UIScreen mainScreen].scale);
+        [view drawViewHierarchyInRect:view.bounds afterScreenUpdates:NO];
+        UIImage *snapshot = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+        return snapshot;
+    }
+    
+    return nil;
+}
+
 static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestImageView, CGFloat *maxArea) {
     if ([view isKindOfClass:[UIImageView class]]) {
         UIImageView *imageView = (UIImageView *)view;
@@ -1007,7 +1048,17 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             return ret;
         }
         
-        // Never fall back to video extraction if it's explicitly a photo cell!
+        if (bestCell) {
+            UIImage *cellImage = extractImageFromViewHierarchy(bestCell);
+            if (cellImage) {
+                [log appendFormat:@"[MediaExtractor] Success! Extracted image directly from bestCell view hierarchy.\n"];
+                NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"image": cellImage}];
+                NSString *u = extractUsernameFromObject(bestCell);
+                if (u) ret[@"username"] = u;
+                return ret;
+            }
+        }
+        
         NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo"}];
         NSString *u = extractUsernameFromObject(bestCell);
         if (u) ret[@"username"] = u;
@@ -1024,13 +1075,23 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             return ret;
         }
         
-        // MUST TRY PHOTO FIRST BEFORE FALLING BACK TO GLOBAL HIJACKED VIDEO
         NSURL *cellPhoto = extractPhotoURLFromObject(bestCell);
         if (cellPhoto && isStrictPhotoURL(cellPhoto.absoluteString)) {
             NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": cellPhoto}];
             NSString *u = extractUsernameFromObject(bestCell);
             if (u) ret[@"username"] = u;
             return ret;
+        }
+        
+        if (bestCell) {
+            UIImage *cellImage = extractImageFromViewHierarchy(bestCell);
+            if (cellImage) {
+                [log appendFormat:@"[MediaExtractor] Success! Extracted image directly from unknown bestCell.\n"];
+                NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"image": cellImage}];
+                NSString *u = extractUsernameFromObject(bestCell);
+                if (u) ret[@"username"] = u;
+                return ret;
+            }
         }
     }
     

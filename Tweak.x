@@ -373,12 +373,10 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
         }
         id url = nil;
         if (item) {
-            id u = [item valueForKey:@"videoURL"] ?: [item valueForKey:@"url"];
-            if ([u isKindOfClass:[NSURL class]]) {
-                url = (NSURL *)u;
-            } else if ([u isKindOfClass:[NSString class]]) {
-                url = [NSURL URLWithString:(NSString *)u];
-            }
+            url = [MediaExtractor deepExtractURLFromObject:item];
+        }
+        if (!url) {
+            url = [MediaExtractor deepExtractURLFromObject:s];
         }
         
         updateLastPlayingMedia(item ?: self, url);
@@ -417,12 +415,10 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
         }
         id url = nil;
         if (item) {
-            id u = [item valueForKey:@"videoURL"] ?: [item valueForKey:@"url"];
-            if ([u isKindOfClass:[NSURL class]]) {
-                url = (NSURL *)u;
-            } else if ([u isKindOfClass:[NSString class]]) {
-                url = [NSURL URLWithString:(NSString *)u];
-            }
+            url = [MediaExtractor deepExtractURLFromObject:item];
+        }
+        if (!url) {
+            url = [MediaExtractor deepExtractURLFromObject:s];
         }
         
         updateLastPlayingMedia(item ?: self, url);

@@ -51,6 +51,30 @@ static BOOL isStrictPhotoURL(NSString *str) {
 // 1. CELL AREA DETECTION & MEDIA TYPE INFERENCE
 // ============================================================================
 
+static BOOL isIgnoredCellClass(NSString *clsName) {
+    if (!clsName) return YES;
+    if ([clsName containsString:@"UFI"] || 
+        [clsName containsString:@"Comment"] || 
+        [clsName containsString:@"Header"] || 
+        [clsName containsString:@"Caption"] || 
+        [clsName containsString:@"Footer"] || 
+        [clsName containsString:@"Action"] || 
+        [clsName containsString:@"Icon"] || 
+        [clsName containsString:@"Button"] || 
+        [clsName containsString:@"Bar"] || 
+        [clsName containsString:@"Text"] || 
+        [clsName containsString:@"Avatar"] || 
+        [clsName containsString:@"Profile"] || 
+        [clsName containsString:@"Badge"] || 
+        [clsName containsString:@"Title"] ||
+        [clsName containsString:@"Container"] || 
+        [clsName containsString:@"Wrapper"] ||
+        [clsName containsString:@"Control"]) {
+        return YES;
+    }
+    return NO;
+}
+
 static void determineBestCell(UIView *view, UIView * __strong *bestCell, CGFloat *maxArea) {
     if (!view || view.isHidden || view.alpha < 0.05) return;
     
@@ -62,17 +86,16 @@ static void determineBestCell(UIView *view, UIView * __strong *bestCell, CGFloat
         else cells = [(UITableView *)view visibleCells];
         
         for (UIView *cell in cells) {
+            NSString *clsName = NSStringFromClass([cell class]);
+            if (isIgnoredCellClass(clsName)) continue;
+            
             CGRect cellFrame = [cell convertRect:cell.bounds toView:nil];
             CGRect intersect = CGRectIntersection(cellFrame, screenBounds);
             if (!CGRectIsNull(intersect)) {
                 CGFloat area = intersect.size.width * intersect.size.height;
-                // Avoid picking container cells that wrap the actual content
                 if (area > *maxArea) {
-                    NSString *clsName = NSStringFromClass([cell class]);
-                    if (![clsName containsString:@"Container"] && ![clsName containsString:@"Wrapper"]) {
-                        *maxArea = area;
-                        *bestCell = cell;
-                    }
+                    *maxArea = area;
+                    *bestCell = cell;
                 }
             }
         }
@@ -87,13 +110,13 @@ static void findCellAtCenterRecursive(UIView *view, CGPoint center, UIView * __s
     if (!view || view.isHidden || view.alpha < 0.05) return;
     
     NSString *clsName = NSStringFromClass([view class]);
-    if ([view isKindOfClass:[UICollectionViewCell class]] || [view isKindOfClass:[UITableViewCell class]] || [clsName containsString:@"Cell"]) {
+    if (isIgnoredCellClass(clsName)) return;
+
+    if ([view isKindOfClass:[UICollectionViewCell class]] || [view isKindOfClass:[UITableViewCell class]] || [clsName containsString:@"Cell"] || [clsName containsString:@"PhotoView"] || [clsName containsString:@"VideoView"]) {
         CGRect cellFrame = [view convertRect:view.bounds toView:nil];
         if (CGRectContainsPoint(cellFrame, center)) {
-            if (![clsName containsString:@"Container"] && ![clsName containsString:@"Wrapper"]) {
-                *bestCell = view;
-                [log appendFormat:@"[HitTest] Found deep cell: %@ at %@\n", clsName, NSStringFromCGRect(cellFrame)];
-            }
+            *bestCell = view;
+            [log appendFormat:@"[HitTest] Found deep cell: %@ at %@\n", clsName, NSStringFromCGRect(cellFrame)];
         }
     }
     
@@ -105,14 +128,26 @@ static void findCellAtCenterRecursive(UIView *view, CGPoint center, UIView * __s
 static UIView *findBestCellFromHitTest(UIView *rootView, NSMutableString *log) {
     if (!rootView) return nil;
     CGRect screenBounds = [UIScreen mainScreen].bounds;
-    CGPoint center = CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height / 2.0);
-    [log appendFormat:@"[HitTest] Screen Center: %@\n", NSStringFromCGPoint(center)];
+    
+    CGPoint testPoints[3] = {
+        CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.40),
+        CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.50),
+        CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.30)
+    };
     
     UIView *bestCell = nil;
-    findCellAtCenterRecursive(rootView, center, &bestCell, log);
+    for (int i = 0; i < 3; i++) {
+        findCellAtCenterRecursive(rootView, testPoints[i], &bestCell, log);
+        if (bestCell) {
+            NSString *cls = NSStringFromClass([bestCell class]);
+            if ([cls containsString:@"Photo"] || [cls containsString:@"Video"] || [cls containsString:@"Media"] || [cls containsString:@"Page"]) {
+                break;
+            }
+        }
+    }
     
     if (!bestCell) {
-        [log appendFormat:@"[HitTest] Recursive search failed! Falling back to maxArea.\n"];
+        [log appendFormat:@"[HitTest] Multi-point search failed! Falling back to maxArea.\n"];
         CGFloat maxArea = 0;
         determineBestCell(rootView, &bestCell, &maxArea);
         [log appendFormat:@"[HitTest] Fallback picked: %@\n", NSStringFromClass([bestCell class])];
@@ -802,8 +837,33 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             topVC = [(UINavigationController *)topVC topViewController];
         }
         
+        NSString *topVCClass = NSStringFromClass([topVC class]);
+        [log appendFormat:@"[MediaExtractor] Searching TopVC: %@\n", topVCClass];
+        
+        if ([topVCClass containsString:@"DirectVisualMessage"] || [topVCClass containsString:@"DMVisual"]) {
+            NSURL *dmVideoURL = [self deepExtractURLFromObject:topVC];
+            if (!dmVideoURL) {
+                dmVideoURL = [self extractActiveVideoURLFromScreenWithLog:log];
+            }
+            if (dmVideoURL && isStrictVideoURL(dmVideoURL.absoluteString)) {
+                [log appendFormat:@"[MediaExtractor] Success! Extracted DM VIDEO URL: %@\n", dmVideoURL.lastPathComponent];
+                NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": dmVideoURL}];
+                NSString *u = extractUsernameFromObject(topVC);
+                if (u) ret[@"username"] = u;
+                return ret;
+            }
+            
+            NSURL *dmPhotoURL = extractPhotoURLFromObject(topVC);
+            if (dmPhotoURL && isStrictPhotoURL(dmPhotoURL.absoluteString)) {
+                [log appendFormat:@"[MediaExtractor] Success! Extracted DM PHOTO URL: %@\n", dmPhotoURL.lastPathComponent];
+                NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": dmPhotoURL}];
+                NSString *u = extractUsernameFromObject(topVC);
+                if (u) ret[@"username"] = u;
+                return ret;
+            }
+        }
+        
         UIView *searchView = topVC.view ? topVC.view : keyWindow;
-        [log appendFormat:@"[MediaExtractor] Searching TopVC: %@\n", NSStringFromClass([topVC class])];
         bestCell = findBestCellFromHitTest(searchView, log);
     }
     

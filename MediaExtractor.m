@@ -66,9 +66,13 @@ static void determineBestCell(UIView *view, UIView * __strong *bestCell, CGFloat
             CGRect intersect = CGRectIntersection(cellFrame, screenBounds);
             if (!CGRectIsNull(intersect)) {
                 CGFloat area = intersect.size.width * intersect.size.height;
+                // Avoid picking container cells that wrap the actual content
                 if (area > *maxArea) {
-                    *maxArea = area;
-                    *bestCell = cell;
+                    NSString *clsName = NSStringFromClass([cell class]);
+                    if (![clsName containsString:@"Container"] && ![clsName containsString:@"Wrapper"]) {
+                        *maxArea = area;
+                        *bestCell = cell;
+                    }
                 }
             }
         }
@@ -222,10 +226,23 @@ static void traverseHierarchyForActivePlayer(UIView *view, NSURL * __strong *bes
     }
 }
 
-static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects, NSMutableString *log) {
+static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects, NSMutableString *log, NSInteger carouselIndex) {
     if (!obj || depth > 5) return nil;
     if ([visitedObjects containsObject:obj]) return nil;
     [visitedObjects addObject:obj];
+    
+    @try {
+        id carouselMedia = [obj valueForKey:@"carouselMedia"] ?: [obj valueForKey:@"carousel_media"];
+        if (carouselMedia && [carouselMedia isKindOfClass:[NSArray class]] && [(NSArray *)carouselMedia count] > 0) {
+            NSInteger useIndex = (carouselIndex >= 0 && carouselIndex < [(NSArray *)carouselMedia count]) ? carouselIndex : 0;
+            id subItem = [(NSArray *)carouselMedia objectAtIndex:useIndex];
+            if (subItem) {
+                // Recursive call for the subItem with -1 so it doesn't loop
+                NSURL *cand = extractVideoURLFromObjectInternal(subItem, depth + 1, visitedObjects, log, -1);
+                if (cand) return cand;
+            }
+        }
+    } @catch(NSException *e) {}
     
     @try {
         id urlsObj = [obj valueForKey:@"allVideoURLs"];
@@ -303,13 +320,14 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         @"video", @"media", @"feedItem", @"currentMedia", @"currentClipsItem", 
         @"currentItem", @"item", @"post", @"videoSpec", @"visualMessage",
         @"directVisualMessage", @"content", @"mediaContent", @"message",
-        @"messageItem", @"currentVisualMessage", @"sundialVideo", @"model", @"viewModel"
+        @"messageItem", @"currentVisualMessage", @"sundialVideo", @"model", @"viewModel",
+        @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource"
     ];
     for (NSString *subName in subObjNames) {
         @try {
             id subObj = [obj valueForKey:subName];
             if (subObj && subObj != obj) {
-                NSURL *found = extractVideoURLFromObjectInternal(subObj, depth + 1, visitedObjects, log);
+                NSURL *found = extractVideoURLFromObjectInternal(subObj, depth + 1, visitedObjects, log, carouselIndex);
                 if (found) return found;
             }
         } @catch(NSException *e) {}
@@ -333,9 +351,18 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         } @catch(NSException *e) {}
     }
 
+    // 4. Koleksiyonlar (NSArray / NSSet) kontrolü
     if ([obj isKindOfClass:[NSArray class]] || [obj isKindOfClass:[NSSet class]]) {
         for (id item in (id<NSFastEnumeration>)obj) {
-            NSURL *found = extractVideoURLFromObjectInternal(item, depth + 1, visitedObjects, log);
+            NSURL *found = extractVideoURLFromObjectInternal(item, depth + 1, visitedObjects, log, carouselIndex);
+            if (found) return found;
+        }
+    }
+
+    // 5. UIView hiyerarşisinde aşağı in (Eğer model bir alt view'daysa)
+    if ([obj isKindOfClass:[UIView class]]) {
+        for (UIView *sub in [(UIView *)obj subviews]) {
+            NSURL *found = extractVideoURLFromObjectInternal(sub, depth + 1, visitedObjects, log, carouselIndex);
             if (found) return found;
         }
     }
@@ -345,13 +372,17 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
 
 static NSURL *extractVideoURLFromObject(id obj, NSMutableString *log) {
     NSMutableSet *visited = [NSMutableSet set];
-    return extractVideoURLFromObjectInternal(obj, 0, visited, log);
+    NSInteger idx = -1;
+    if ([obj isKindOfClass:[UIView class]]) {
+        idx = calculateCarouselIndex((UIView *)obj);
+    }
+    return extractVideoURLFromObjectInternal(obj, 0, visited, log, idx);
 }
 
 + (NSURL *)deepExtractURLFromObject:(id)obj {
     NSMutableSet *visited = [NSMutableSet set];
     NSMutableString *dummyLog = [NSMutableString new];
-    return extractVideoURLFromObjectInternal(obj, 0, visited, dummyLog);
+    return extractVideoURLFromObjectInternal(obj, 0, visited, dummyLog, -1);
 }
 
 static UIViewController *getTopViewController(UIViewController *rootViewController) {
@@ -481,7 +512,7 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
 // 3. HD PHOTO EXTRACTION ENGINE
 // ============================================================================
 
-static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects) {
+static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects, NSInteger carouselIndex) {
     if (!obj || depth > 4) return nil;
     if ([visitedObjects containsObject:obj]) return nil;
     [visitedObjects addObject:obj];
@@ -494,6 +525,28 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
             return nil;
         }
     }
+    
+    @try {
+        id carouselMedia = [obj valueForKey:@"carouselMedia"] ?: [obj valueForKey:@"carousel_media"];
+        if (carouselMedia && [carouselMedia isKindOfClass:[NSArray class]] && [(NSArray *)carouselMedia count] > 0) {
+            NSInteger useIndex = (carouselIndex >= 0 && carouselIndex < [(NSArray *)carouselMedia count]) ? carouselIndex : 0;
+            id subItem = [(NSArray *)carouselMedia objectAtIndex:useIndex];
+            if (subItem) {
+                id imageVersions = [subItem valueForKey:@"imageVersions2"] ?: [subItem valueForKey:@"image_versions2"];
+                if (imageVersions) {
+                    id candidates = [imageVersions valueForKey:@"candidates"];
+                    if ([candidates isKindOfClass:[NSArray class]] && [(NSArray *)candidates count] > 0) {
+                        id bestCand = [(NSArray *)candidates firstObject];
+                        id u = [bestCand valueForKey:@"url"];
+                        NSString *str = nil;
+                        if ([u isKindOfClass:[NSString class]]) str = (NSString *)u;
+                        else if ([u isKindOfClass:[NSURL class]]) str = [(NSURL *)u absoluteString];
+                        if (str && isStrictPhotoURL(str)) return [NSURL URLWithString:str];
+                    }
+                }
+            }
+        }
+    } @catch(NSException *e) {}
     
     @try {
         id imageVersions = [obj valueForKey:@"imageVersions2"] ?: [obj valueForKey:@"image_versions2"];
@@ -521,12 +574,12 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         } @catch(NSException *e) {}
     }
     
-    NSArray *subObjNames = @[@"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo"];
+    NSArray *subObjNames = @[@"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource"];
     for (NSString *subName in subObjNames) {
         @try {
             id subObj = [obj valueForKey:subName];
             if (subObj && subObj != obj) {
-                NSURL *found = extractPhotoURLFromObjectInternal(subObj, depth + 1, visitedObjects);
+                NSURL *found = extractPhotoURLFromObjectInternal(subObj, depth + 1, visitedObjects, carouselIndex);
                 if (found) return found;
             }
         } @catch(NSException *e) {}
@@ -534,23 +587,44 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
     
     if ([obj isKindOfClass:[UIView class]]) {
         for (UIView *subview in [(UIView *)obj subviews]) {
-            NSURL *found = extractPhotoURLFromObjectInternal(subview, depth + 1, visitedObjects);
+            NSURL *found = extractPhotoURLFromObjectInternal(subview, depth + 1, visitedObjects, carouselIndex);
             if (found) return found;
         }
     }
 
     if ([obj isKindOfClass:[NSArray class]] || [obj isKindOfClass:[NSSet class]]) {
         for (id item in (id<NSFastEnumeration>)obj) {
-            NSURL *found = extractPhotoURLFromObjectInternal(item, depth + 1, visitedObjects);
+            NSURL *found = extractPhotoURLFromObjectInternal(item, depth + 1, visitedObjects, carouselIndex);
             if (found) return found;
         }
     }
     return nil;
 }
 
+static NSInteger calculateCarouselIndex(UIView *cell) {
+    if (!cell) return -1;
+    UIView *v = cell;
+    while (v && ![v isKindOfClass:[UICollectionView class]]) {
+        v = v.superview;
+    }
+    if ([v isKindOfClass:[UICollectionView class]]) {
+        UICollectionView *cv = (UICollectionView *)v;
+        CGFloat offsetX = cv.contentOffset.x;
+        CGFloat width = cv.bounds.size.width;
+        if (width > 0) {
+            return (NSInteger)round(offsetX / width);
+        }
+    }
+    return -1;
+}
+
 static NSURL *extractPhotoURLFromObject(id obj) {
     NSMutableSet *visited = [NSMutableSet set];
-    return extractPhotoURLFromObjectInternal(obj, 0, visited);
+    NSInteger idx = -1;
+    if ([obj isKindOfClass:[UIView class]]) {
+        idx = calculateCarouselIndex((UIView *)obj);
+    }
+    return extractPhotoURLFromObjectInternal(obj, 0, visited, idx);
 }
 
 static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestImageView, CGFloat *maxArea) {

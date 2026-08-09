@@ -158,7 +158,11 @@ static UIView *findCenterMostCell(UIView *rootView, NSMutableString *log) {
                    [clsName containsString:@"MediaCell"] || 
                    [clsName containsString:@"PhotoCell"] || 
                    [clsName containsString:@"PagePhoto"] || 
-                   [clsName containsString:@"PageVideo"]) {
+                   [clsName containsString:@"PageVideo"] ||
+                   [clsName containsString:@"Sundial"] ||
+                   [clsName containsString:@"Reel"] ||
+                   [clsName containsString:@"Carousel"] ||
+                   [clsName containsString:@"Clips"]) {
             [candidateViews addObject:v];
         }
         
@@ -172,6 +176,17 @@ static UIView *findCenterMostCell(UIView *rootView, NSMutableString *log) {
     
     for (UIView *cell in candidateViews) {
         NSString *clsName = NSStringFromClass([cell class]);
+        
+        BOOL isMediaCell = [clsName containsString:@"Photo"] || 
+                           [clsName containsString:@"Video"] || 
+                           [clsName containsString:@"Media"] || 
+                           [clsName containsString:@"Sundial"] || 
+                           [clsName containsString:@"Reel"] || 
+                           [clsName containsString:@"Carousel"] ||
+                           [clsName containsString:@"Clips"] ||
+                           [clsName containsString:@"Image"];
+        if (!isMediaCell) continue;
+        
         CGRect cellFrame = [cell convertRect:cell.bounds toView:nil];
         CGRect intersect = CGRectIntersection(cellFrame, screenBounds);
         
@@ -179,15 +194,14 @@ static UIView *findCenterMostCell(UIView *rootView, NSMutableString *log) {
             CGFloat visibleCenterY = intersect.origin.y + intersect.size.height / 2.0;
             CGFloat dist = fabs(visibleCenterY - screenCenter.y);
             
-            BOOL isSpecificMediaView = [clsName containsString:@"PhotoView"] || 
-                                       [clsName containsString:@"VideoView"] || 
-                                       [clsName containsString:@"MediaCell"] || 
-                                       [clsName containsString:@"PhotoCell"] || 
-                                       [clsName containsString:@"PagePhoto"] || 
-                                       [clsName containsString:@"PageVideo"];
+            BOOL isVideoOrReel = [clsName containsString:@"Video"] || 
+                                 [clsName containsString:@"Sundial"] || 
+                                 [clsName containsString:@"Reel"] ||
+                                 [clsName containsString:@"Clips"];
             
-            if (isSpecificMediaView) {
-                dist -= 40.0;
+            // Break ties between overlapping Video and Photo (Cover) views in favor of Video
+            if (isVideoOrReel) {
+                dist -= 1.0;
             }
             
             if (dist < minDistance) {
@@ -268,7 +282,7 @@ static NSInteger detectMediaTypeFromCell(UIView *cell) {
         }
         
         NSString *cls = NSStringFromClass([v class]);
-        if ([cls containsString:@"VideoCell"] || [cls containsString:@"VideoPlayer"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"]) return 2;
+        if ([cls containsString:@"VideoCell"] || [cls containsString:@"VideoPlayer"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"] || [cls containsString:@"Clips"]) return 2;
         if ([cls containsString:@"PhotoCell"]) return 1;
         if ([cls containsString:@"CarouselCell"] || [cls containsString:@"PageCell"]) return 8;
         
@@ -576,17 +590,15 @@ static NSURL *extractVideoURLFromObject(id obj, NSMutableString *log) {
     }
     
     if (gLastPlayingVideoURL && (now - gLastPlayingVideoTime < 5.0)) {
-        if (![gLastPlayingVideoURL isFileURL]) {
-            [log appendFormat:@"[Step 2] Found video URL from hook live URL!\n"];
-            return gLastPlayingVideoURL;
-        }
+        [log appendFormat:@"[Step 2] Found video URL from hook live URL!\n"];
+        return gLastPlayingVideoURL;
     }
     
     if (keyWindow) {
         NSURL *playerURL = nil;
         CGFloat minDist = CGFLOAT_MAX;
         traverseHierarchyForActivePlayer(keyWindow, &playerURL, &minDist, log);
-        if (playerURL && ![playerURL isFileURL]) {
+        if (playerURL) {
             [log appendFormat:@"[Step 3] Found video URL from visible player layer!\n"];
             return playerURL;
         }
@@ -937,7 +949,7 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             isVideoCell = YES;
         } else {
             NSString *cls = NSStringFromClass([bestCell class]);
-            isVideoCell = [cls containsString:@"Video"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"];
+            isVideoCell = [cls containsString:@"Video"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"] || [cls containsString:@"Clips"];
             isPhotoCell = [cls containsString:@"Photo"] || [cls containsString:@"Image"];
         }
         [log appendFormat:@"[MediaExtractor] Best Cell (Max Area) is %@. mediaType=%ld, VideoCell=%d, PhotoCell=%d\n", NSStringFromClass([bestCell class]), (long)mediaType, isVideoCell, isPhotoCell];
@@ -1053,7 +1065,7 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         isVideoCell = YES;
     } else {
         NSString *cls = NSStringFromClass([view class]);
-        isVideoCell = [cls containsString:@"Video"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"];
+        isVideoCell = [cls containsString:@"Video"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"] || [cls containsString:@"Clips"];
         isPhotoCell = [cls containsString:@"Photo"] || [cls containsString:@"Image"];
     }
     

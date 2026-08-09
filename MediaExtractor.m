@@ -131,7 +131,7 @@ static UIView *findCenterMostCell(UIView *rootView, NSMutableString *log) {
     CGRect screenBounds = [UIScreen mainScreen].bounds;
     CGPoint screenCenter = CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height / 2.0);
     
-    NSMutableArray<UIView *> *allCells = [NSMutableArray array];
+    NSMutableArray<UIView *> *candidateViews = [NSMutableArray array];
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:rootView];
     
     while (queue.count > 0) {
@@ -140,16 +140,26 @@ static UIView *findCenterMostCell(UIView *rootView, NSMutableString *log) {
         
         if (!v || v.isHidden || v.alpha < 0.05) continue;
         
+        NSString *clsName = NSStringFromClass([v class]);
+        if (isIgnoredCellClass(clsName)) continue;
+        
         if ([v isKindOfClass:[UICollectionView class]]) {
             NSArray *visible = [(UICollectionView *)v visibleCells];
             for (UIView *c in visible) {
-                if (c && !c.isHidden && c.alpha > 0.05) [allCells addObject:c];
+                if (c && !c.isHidden && c.alpha > 0.05) [candidateViews addObject:c];
             }
         } else if ([v isKindOfClass:[UITableView class]]) {
             NSArray *visible = [(UITableView *)v visibleCells];
             for (UIView *c in visible) {
-                if (c && !c.isHidden && c.alpha > 0.05) [allCells addObject:c];
+                if (c && !c.isHidden && c.alpha > 0.05) [candidateViews addObject:c];
             }
+        } else if ([clsName containsString:@"PhotoView"] || 
+                   [clsName containsString:@"VideoView"] || 
+                   [clsName containsString:@"MediaCell"] || 
+                   [clsName containsString:@"PhotoCell"] || 
+                   [clsName containsString:@"PagePhoto"] || 
+                   [clsName containsString:@"PageVideo"]) {
+            [candidateViews addObject:v];
         }
         
         if (v.subviews.count > 0) {
@@ -160,18 +170,24 @@ static UIView *findCenterMostCell(UIView *rootView, NSMutableString *log) {
     UIView *bestCell = nil;
     CGFloat minDistance = CGFLOAT_MAX;
     
-    for (UIView *cell in allCells) {
+    for (UIView *cell in candidateViews) {
         NSString *clsName = NSStringFromClass([cell class]);
-        if (isIgnoredCellClass(clsName)) continue;
-        
         CGRect cellFrame = [cell convertRect:cell.bounds toView:nil];
         CGRect intersect = CGRectIntersection(cellFrame, screenBounds);
-        if (!CGRectIsNull(intersect) && intersect.size.height > 80) {
-            CGFloat cellCenterY = cellFrame.origin.y + cellFrame.size.height / 2.0;
-            CGFloat dist = fabs(cellCenterY - screenCenter.y);
+        
+        if (!CGRectIsNull(intersect) && intersect.size.height > 100) {
+            CGFloat visibleCenterY = intersect.origin.y + intersect.size.height / 2.0;
+            CGFloat dist = fabs(visibleCenterY - screenCenter.y);
             
-            if ([clsName containsString:@"Photo"] || [clsName containsString:@"Video"] || [clsName containsString:@"Media"] || [clsName containsString:@"Page"]) {
-                dist *= 0.8;
+            BOOL isSpecificMediaView = [clsName containsString:@"PhotoView"] || 
+                                       [clsName containsString:@"VideoView"] || 
+                                       [clsName containsString:@"MediaCell"] || 
+                                       [clsName containsString:@"PhotoCell"] || 
+                                       [clsName containsString:@"PagePhoto"] || 
+                                       [clsName containsString:@"PageVideo"];
+            
+            if (isSpecificMediaView) {
+                dist -= 40.0;
             }
             
             if (dist < minDistance) {
@@ -182,7 +198,7 @@ static UIView *findCenterMostCell(UIView *rootView, NSMutableString *log) {
     }
     
     if (bestCell) {
-        [log appendFormat:@"[CenterEngine] Picked center-most cell: %@ (dist: %.1f)\n", NSStringFromClass([bestCell class]), minDistance];
+        [log appendFormat:@"[IntersectionEngine] Picked visible media view: %@ (dist: %.1f)\n", NSStringFromClass([bestCell class]), minDistance];
     }
     
     return bestCell;

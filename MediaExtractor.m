@@ -245,22 +245,35 @@ static NSInteger detectMediaTypeFromCell(UIView *cell) {
     if (!cell) return 0;
     
     NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem", @"sundialVideo"];
-    for (NSString *prop in modelProps) {
-        @try {
-            id model = [cell valueForKey:prop];
-            if (model) {
-                NSArray *typeProps = @[@"mediaType", @"media_type"];
-                for (NSString *tProp in typeProps) {
-                    @try {
-                        id typeVal = [model valueForKey:tProp];
-                        if ([typeVal respondsToSelector:@selector(integerValue)]) {
-                            NSInteger t = [typeVal integerValue];
-                            if (t > 0) return t;
-                        }
-                    } @catch(NSException *e) {}
+    NSArray *typeProps = @[@"mediaType", @"media_type"];
+
+    UIView *v = cell;
+    int depth = 0;
+    while (v && depth < 6) {
+        for (NSString *prop in modelProps) {
+            @try {
+                id model = [v valueForKey:prop];
+                if (model) {
+                    for (NSString *tProp in typeProps) {
+                        @try {
+                            id typeVal = [model valueForKey:tProp];
+                            if ([typeVal respondsToSelector:@selector(integerValue)]) {
+                                NSInteger t = [typeVal integerValue];
+                                if (t > 0) return t;
+                            }
+                        } @catch(NSException *e) {}
+                    }
                 }
-            }
-        } @catch(NSException *e) {}
+            } @catch(NSException *e) {}
+        }
+        
+        NSString *cls = NSStringFromClass([v class]);
+        if ([cls containsString:@"VideoCell"] || [cls containsString:@"VideoPlayer"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"]) return 2;
+        if ([cls containsString:@"PhotoCell"]) return 1;
+        if ([cls containsString:@"CarouselCell"] || [cls containsString:@"PageCell"]) return 8;
+        
+        v = v.superview;
+        depth++;
     }
     
     for (UIView *sub in cell.subviews) {
@@ -268,7 +281,6 @@ static NSInteger detectMediaTypeFromCell(UIView *cell) {
             @try {
                 id model = [sub valueForKey:prop];
                 if (model) {
-                    NSArray *typeProps = @[@"mediaType", @"media_type"];
                     for (NSString *tProp in typeProps) {
                         @try {
                             id typeVal = [model valueForKey:tProp];
@@ -283,10 +295,10 @@ static NSInteger detectMediaTypeFromCell(UIView *cell) {
         }
     }
     
-    NSString *cls = NSStringFromClass([cell class]);
-    if ([cls containsString:@"Video"] || [cls containsString:@"Sundial"] || [cls containsString:@"Reel"]) return 2;
-    if ([cls containsString:@"Photo"] || [cls containsString:@"Image"]) return 1;
-    if ([cls containsString:@"Carousel"]) return 8;
+    NSString *cellCls = NSStringFromClass([cell class]);
+    if ([cellCls containsString:@"Video"] || [cellCls containsString:@"Sundial"] || [cellCls containsString:@"Reel"]) return 2;
+    if ([cellCls containsString:@"Photo"] || [cellCls containsString:@"Image"]) return 1;
+    if ([cellCls containsString:@"Carousel"]) return 8;
     
     return 0;
 }
@@ -1018,18 +1030,16 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         [log appendFormat:@"[MediaExtractor] Explicit VIDEO cell detected.\n"];
         
         NSURL *cellVideoURL = extractVideoURLFromObject(bestCell, log);
-        if (cellVideoURL && isStrictVideoURL(cellVideoURL.absoluteString)) {
-            [log appendFormat:@"[MediaExtractor] Success! Extracted VIDEO URL from best cell: %@\n", cellVideoURL.lastPathComponent];
-            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": cellVideoURL}];
-            NSString *u = extractUsernameFromObject(bestCell);
-            if (u) ret[@"username"] = u;
-            return ret;
+        if (!cellVideoURL && bestCell.superview) {
+            cellVideoURL = extractVideoURLFromObject(bestCell.superview, log);
         }
-        
-        NSURL *globalVideoURL = [self extractActiveVideoURLFromScreenWithLog:log];
-        if (globalVideoURL) {
-            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": globalVideoURL}];
-            NSString *u = extractUsernameFromObject(bestCell) ?: extractUsernameFromObject(gLastPlayingMediaObject);
+        if (!cellVideoURL) {
+            cellVideoURL = [self extractActiveVideoURLFromScreenWithLog:log];
+        }
+        if (cellVideoURL && isStrictVideoURL(cellVideoURL.absoluteString)) {
+            [log appendFormat:@"[MediaExtractor] Success! Extracted VIDEO URL: %@\n", cellVideoURL.lastPathComponent];
+            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": cellVideoURL}];
+            NSString *u = extractUsernameFromObject(bestCell) ?: extractUsernameFromObject(bestCell.superview);
             if (u) ret[@"username"] = u;
             return ret;
         }
@@ -1040,10 +1050,13 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         [log appendFormat:@"[MediaExtractor] Explicit PHOTO cell detected.\n"];
         
         NSURL *photoURL = extractPhotoURLFromObject(bestCell);
+        if (!photoURL && bestCell.superview) {
+            photoURL = extractPhotoURLFromObject(bestCell.superview);
+        }
         if (photoURL && isStrictPhotoURL(photoURL.absoluteString)) {
-            [log appendFormat:@"[MediaExtractor] Success! Extracted PHOTO URL from best cell: %@\n", photoURL.lastPathComponent];
+            [log appendFormat:@"[MediaExtractor] Success! Extracted PHOTO URL from cell: %@\n", photoURL.lastPathComponent];
             NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": photoURL}];
-            NSString *u = extractUsernameFromObject(bestCell);
+            NSString *u = extractUsernameFromObject(bestCell) ?: extractUsernameFromObject(bestCell.superview);
             if (u) ret[@"username"] = u;
             return ret;
         }
@@ -1053,14 +1066,14 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             if (cellImage) {
                 [log appendFormat:@"[MediaExtractor] Success! Extracted image directly from bestCell view hierarchy.\n"];
                 NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"image": cellImage}];
-                NSString *u = extractUsernameFromObject(bestCell);
+                NSString *u = extractUsernameFromObject(bestCell) ?: extractUsernameFromObject(bestCell.superview);
                 if (u) ret[@"username"] = u;
                 return ret;
             }
         }
         
         NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo"}];
-        NSString *u = extractUsernameFromObject(bestCell);
+        NSString *u = extractUsernameFromObject(bestCell) ?: extractUsernameFromObject(bestCell.superview);
         if (u) ret[@"username"] = u;
         return ret;
     } 

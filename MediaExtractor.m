@@ -48,7 +48,7 @@ static BOOL isStrictPhotoURL(NSString *str) {
 }
 
 // ============================================================================
-// 1. CELL AREA DETECTION (FIND LARGEST VISIBLE POST CELL)
+// 1. CELL AREA DETECTION & MEDIA TYPE INFERENCE
 // ============================================================================
 
 static void determineBestCell(UIView *view, UIView * __strong *bestCell, CGFloat *maxArea) {
@@ -77,6 +77,56 @@ static void determineBestCell(UIView *view, UIView * __strong *bestCell, CGFloat
     for (UIView *sub in view.subviews) {
         determineBestCell(sub, bestCell, maxArea);
     }
+}
+
+static NSInteger detectMediaTypeFromCell(UIView *cell) {
+    if (!cell) return 0;
+    
+    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem"];
+    for (NSString *prop in modelProps) {
+        @try {
+            id model = [cell valueForKey:prop];
+            if (model) {
+                NSArray *typeProps = @[@"mediaType", @"media_type"];
+                for (NSString *tProp in typeProps) {
+                    @try {
+                        id typeVal = [model valueForKey:tProp];
+                        if ([typeVal respondsToSelector:@selector(integerValue)]) {
+                            NSInteger t = [typeVal integerValue];
+                            if (t > 0) return t;
+                        }
+                    } @catch(NSException *e) {}
+                }
+            }
+        } @catch(NSException *e) {}
+    }
+    
+    for (UIView *sub in cell.subviews) {
+        for (NSString *prop in modelProps) {
+            @try {
+                id model = [sub valueForKey:prop];
+                if (model) {
+                    NSArray *typeProps = @[@"mediaType", @"media_type"];
+                    for (NSString *tProp in typeProps) {
+                        @try {
+                            id typeVal = [model valueForKey:tProp];
+                            if ([typeVal respondsToSelector:@selector(integerValue)]) {
+                                NSInteger t = [typeVal integerValue];
+                                if (t > 0) return t;
+                            }
+                        } @catch(NSException *e) {}
+                    }
+                }
+            } @catch(NSException *e) {}
+        }
+    }
+    
+    NSString *cls = NSStringFromClass([cell class]);
+    if ([cls containsString:@"Video"]) return 2;
+    if ([cls containsString:@"Photo"] || [cls containsString:@"Image"]) return 1;
+    if ([cls containsString:@"Carousel"]) return 8;
+    
+    return 0;
 }
 
 // ============================================================================
@@ -349,7 +399,6 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
     
     NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
     
-    // Adım 1: Hook'tan Gelen Oynatılan Medya Nesnesi
     if (gLastPlayingMediaObject && (now - gLastPlayingVideoTime < 120.0)) {
         NSURL *progURL = extractVideoURLFromObject(gLastPlayingMediaObject, log);
         if (progURL) {
@@ -358,7 +407,6 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
         }
     }
     
-    // Adım 2: Top ViewController Taraması
     UIViewController *topVC = getTopViewController(nil);
     if (topVC) {
         NSURL *modelURL = extractVideoURLFromObject(topVC, log);
@@ -368,7 +416,6 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
         }
     }
     
-    // Adım 3: Hook'tan Gelen Canlı Oynatıcı HTTP URL'si
     if (gLastPlayingVideoURL && (now - gLastPlayingVideoTime < 120.0)) {
         if (![gLastPlayingVideoURL isFileURL] && ![gLastPlayingVideoURL.absoluteString containsString:@"oil_"]) {
             [log appendFormat:@"[Step 3] Found video URL from hook live URL!\n"];
@@ -376,7 +423,6 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
         }
     }
     
-    // Adım 4: Ekrandaki Görünür AVPlayerLayer / FNFPlayerLayer Taraması
     if (keyWindow) {
         NSURL *playerURL = nil;
         CGFloat minDist = CGFLOAT_MAX;
@@ -387,7 +433,6 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
         }
     }
     
-    // Adım 5: Disk Önbelleği Taraması (.mp4)
     [log appendFormat:@"[Step 5] Scanning disk cache for full .mp4 video files...\n"];
     NSArray *searchPaths = @[
         NSTemporaryDirectory(),
@@ -440,7 +485,7 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
 }
 
 // ============================================================================
-// 3. HD PHOTO EXTRACTION ENGINE (ONLY FOR STATIC PHOTO POSTS)
+// 3. HD PHOTO EXTRACTION ENGINE
 // ============================================================================
 
 static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects) {
@@ -550,7 +595,7 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
 }
 
 // ============================================================================
-// 4. MAIN ENTRY POINT: PERFECT FLAWLESS ORDER OF OPERATIONS
+// 4. MAIN ENTRY POINT: MEDIA TYPE INFERENCE + PRECISION EXTRACTION
 // ============================================================================
 
 + (NSDictionary *)extractActiveMediaContextFromScreenWithLog:(NSMutableString *)log {
@@ -572,14 +617,41 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
     BOOL isVideoCell = NO;
     BOOL isPhotoCell = NO;
     if (bestCell) {
-        NSString *cls = NSStringFromClass([bestCell class]);
-        isVideoCell = [cls containsString:@"Video"];
-        isPhotoCell = [cls containsString:@"Photo"] || [cls containsString:@"Image"];
-        [log appendFormat:@"[MediaExtractor] Best Cell (Max Area) is %@. VideoCell=%d, PhotoCell=%d\n", cls, isVideoCell, isPhotoCell];
+        NSInteger mediaType = detectMediaTypeFromCell(bestCell);
+        if (mediaType == 1 || mediaType == 8) {
+            isPhotoCell = YES;
+        } else if (mediaType == 2) {
+            isVideoCell = YES;
+        } else {
+            NSString *cls = NSStringFromClass([bestCell class]);
+            isVideoCell = [cls containsString:@"Video"];
+            isPhotoCell = [cls containsString:@"Photo"] || [cls containsString:@"Image"];
+        }
+        [log appendFormat:@"[MediaExtractor] Best Cell (Max Area) is %@. mediaType=%ld, VideoCell=%d, PhotoCell=%d\n", NSStringFromClass([bestCell class]), (long)mediaType, isVideoCell, isPhotoCell];
     }
     
-    if (isPhotoCell) {
-        [log appendFormat:@"[MediaExtractor] Explicit PHOTO cell detected. Prioritizing Photo Extraction...\n"];
+    if (isVideoCell) {
+        [log appendFormat:@"[MediaExtractor] Explicit VIDEO cell detected.\n"];
+        
+        NSURL *cellVideoURL = extractVideoURLFromObject(bestCell, log);
+        if (cellVideoURL && isStrictVideoURL(cellVideoURL.absoluteString)) {
+            [log appendFormat:@"[MediaExtractor] Success! Extracted VIDEO URL from best cell: %@\n", cellVideoURL.lastPathComponent];
+            return @{@"type": @"video", @"url": cellVideoURL};
+        }
+        
+        NSURL *globalVideoURL = [self extractActiveVideoURLFromScreenWithLog:log];
+        if (globalVideoURL) {
+            return @{@"type": @"video", @"url": globalVideoURL};
+        }
+        
+        NSURL *fallbackPhoto = extractPhotoURLFromObject(bestCell);
+        if (fallbackPhoto && isStrictPhotoURL(fallbackPhoto.absoluteString)) {
+            return @{@"type": @"photo", @"url": fallbackPhoto};
+        }
+    } 
+    else if (isPhotoCell) {
+        [log appendFormat:@"[MediaExtractor] Explicit PHOTO cell detected.\n"];
+        
         NSURL *photoURL = extractPhotoURLFromObject(bestCell);
         if (photoURL && isStrictPhotoURL(photoURL.absoluteString)) {
             [log appendFormat:@"[MediaExtractor] Success! Extracted PHOTO URL from best cell: %@\n", photoURL.lastPathComponent];
@@ -590,19 +662,23 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         if (videoURL && isStrictVideoURL(videoURL.absoluteString)) {
             return @{@"type": @"video", @"url": videoURL};
         }
-    } else {
-        [log appendFormat:@"[MediaExtractor] Running Video Engine...\n"];
-        NSURL *videoURL = [self extractActiveVideoURLFromScreenWithLog:log];
-        if (videoURL) {
-            return @{@"type": @"video", @"url": videoURL};
+    } 
+    else {
+        [log appendFormat:@"[MediaExtractor] Unknown cell type. Trying both...\n"];
+        
+        NSURL *cellVideo = extractVideoURLFromObject(bestCell, log);
+        if (cellVideo && isStrictVideoURL(cellVideo.absoluteString)) {
+            return @{@"type": @"video", @"url": cellVideo};
         }
         
-        if (bestCell) {
-            [log appendFormat:@"[MediaExtractor] Video engine failed, falling back to Photo Extraction on best cell...\n"];
-            NSURL *photoURL = extractPhotoURLFromObject(bestCell);
-            if (photoURL && isStrictPhotoURL(photoURL.absoluteString)) {
-                return @{@"type": @"photo", @"url": photoURL};
-            }
+        NSURL *cellPhoto = extractPhotoURLFromObject(bestCell);
+        if (cellPhoto && isStrictPhotoURL(cellPhoto.absoluteString)) {
+            return @{@"type": @"photo", @"url": cellPhoto};
+        }
+        
+        NSURL *globalVideo = [self extractActiveVideoURLFromScreenWithLog:log];
+        if (globalVideo) {
+            return @{@"type": @"video", @"url": globalVideo};
         }
     }
     

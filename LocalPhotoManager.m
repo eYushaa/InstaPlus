@@ -73,10 +73,23 @@ static NSURL *cleanVideoURL(NSURL *url) {
 }
 
 
+static NSString *gLastSavedVideoURLString = nil;
+static NSTimeInterval gLastSavedVideoTime = 0;
+
 - (BOOL)saveVideoFromURL:(NSURL *)videoURL forUsername:(NSString *)username error:(NSError **)error {
     if (!videoURL || !username || username.length == 0) return NO;
     
     videoURL = cleanVideoURL(videoURL);
+    NSString *urlKey = videoURL.absoluteString;
+    NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+    
+    if (gLastSavedVideoURLString && [gLastSavedVideoURLString isEqualToString:urlKey] && (now - gLastSavedVideoTime < 5.0)) {
+        NSLog(@"[InstaPlus] Deduplication: video already saved within last 5s. Skipping duplicate save.");
+        return YES;
+    }
+    
+    gLastSavedVideoURLString = urlKey;
+    gLastSavedVideoTime = now;
     
     NSString *userFolderPath = [[self baseGalleryPath] stringByAppendingPathComponent:username];
     NSFileManager *fm = [NSFileManager defaultManager];

@@ -125,23 +125,91 @@ static void findCellAtCenterRecursive(UIView *view, CGPoint center, UIView * __s
     }
 }
 
-static UIView *findBestCellFromHitTest(UIView *rootView, NSMutableString *log) {
+static UIView *findCenterMostCell(UIView *rootView, NSMutableString *log) {
     if (!rootView) return nil;
-    CGRect screenBounds = [UIScreen mainScreen].bounds;
     
-    CGPoint testPoints[3] = {
-        CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.40),
-        CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.50),
-        CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.30)
-    };
+    CGRect screenBounds = [UIScreen mainScreen].bounds;
+    CGPoint screenCenter = CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height / 2.0);
+    
+    NSMutableArray<UIView *> *allCells = [NSMutableArray array];
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:rootView];
+    
+    while (queue.count > 0) {
+        UIView *v = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+        
+        if (!v || v.isHidden || v.alpha < 0.05) continue;
+        
+        if ([v isKindOfClass:[UICollectionView class]]) {
+            NSArray *visible = [(UICollectionView *)v visibleCells];
+            for (UIView *c in visible) {
+                if (c && !c.isHidden && c.alpha > 0.05) [allCells addObject:c];
+            }
+        } else if ([v isKindOfClass:[UITableView class]]) {
+            NSArray *visible = [(UITableView *)v visibleCells];
+            for (UIView *c in visible) {
+                if (c && !c.isHidden && c.alpha > 0.05) [allCells addObject:c];
+            }
+        }
+        
+        if (v.subviews.count > 0) {
+            [queue addObjectsFromArray:v.subviews];
+        }
+    }
     
     UIView *bestCell = nil;
-    for (int i = 0; i < 3; i++) {
-        findCellAtCenterRecursive(rootView, testPoints[i], &bestCell, log);
-        if (bestCell) {
-            NSString *cls = NSStringFromClass([bestCell class]);
-            if ([cls containsString:@"Photo"] || [cls containsString:@"Video"] || [cls containsString:@"Media"] || [cls containsString:@"Page"]) {
-                break;
+    CGFloat minDistance = CGFLOAT_MAX;
+    
+    for (UIView *cell in allCells) {
+        NSString *clsName = NSStringFromClass([cell class]);
+        if (isIgnoredCellClass(clsName)) continue;
+        
+        CGRect cellFrame = [cell convertRect:cell.bounds toView:nil];
+        CGRect intersect = CGRectIntersection(cellFrame, screenBounds);
+        if (!CGRectIsNull(intersect) && intersect.size.height > 80) {
+            CGFloat cellCenterY = cellFrame.origin.y + cellFrame.size.height / 2.0;
+            CGFloat dist = fabs(cellCenterY - screenCenter.y);
+            
+            if ([clsName containsString:@"Photo"] || [clsName containsString:@"Video"] || [clsName containsString:@"Media"] || [clsName containsString:@"Page"]) {
+                dist *= 0.8;
+            }
+            
+            if (dist < minDistance) {
+                minDistance = dist;
+                bestCell = cell;
+            }
+        }
+    }
+    
+    if (bestCell) {
+        [log appendFormat:@"[CenterEngine] Picked center-most cell: %@ (dist: %.1f)\n", NSStringFromClass([bestCell class]), minDistance];
+    }
+    
+    return bestCell;
+}
+
+static UIView *findBestCellFromHitTest(UIView *rootView, NSMutableString *log) {
+    if (!rootView) return nil;
+    
+    // 1. Try Center-Distance Engine FIRST!
+    UIView *bestCell = findCenterMostCell(rootView, log);
+    
+    // 2. Fallback to multi-point hitTest if Center-Distance Engine returned nil
+    if (!bestCell) {
+        CGRect screenBounds = [UIScreen mainScreen].bounds;
+        CGPoint testPoints[3] = {
+            CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.40),
+            CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.50),
+            CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height * 0.30)
+        };
+        
+        for (int i = 0; i < 3; i++) {
+            findCellAtCenterRecursive(rootView, testPoints[i], &bestCell, log);
+            if (bestCell) {
+                NSString *cls = NSStringFromClass([bestCell class]);
+                if ([cls containsString:@"Photo"] || [cls containsString:@"Video"] || [cls containsString:@"Media"] || [cls containsString:@"Page"]) {
+                    break;
+                }
             }
         }
     }

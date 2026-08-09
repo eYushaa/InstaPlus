@@ -241,7 +241,7 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
     }
     if (url) {
         NSString *str = url.absoluteString.lowercaseString;
-        if (([str hasPrefix:@"http"] || [str hasPrefix:@"file:"]) && ![str containsString:@"oil_"]) {
+        if ([str hasPrefix:@"http"] || [str hasPrefix:@"file:"]) {
             gLastPlayingVideoURL = url;
         }
     }
@@ -352,36 +352,19 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
             id ds = [s valueForKey:@"_dataSource"] ?: [s valueForKey:@"dataSource"];
             if (ds) {
                 id msg = [ds valueForKey:@"_currentMessage"] ?: [ds valueForKey:@"currentMessage"];
-                if (msg) {
-                    item = [msg valueForKey:@"rawVideo"] ?: [msg valueForKey:@"video"] ?: [msg valueForKey:@"rawPhoto"] ?: [msg valueForKey:@"photo"];
+                if (!msg) {
+                    id visualMsgs = [ds valueForKey:@"visualMessages"];
+                    if ([visualMsgs isKindOfClass:[NSArray class]] && [(NSArray *)visualMsgs count] > 0) {
+                        NSNumber *idx = [s valueForKey:@"_currentVisualMessageIndex"];
+                        NSInteger i = idx ? [idx integerValue] : 0;
+                        if (i >= 0 && i < [(NSArray *)visualMsgs count]) {
+                            msg = [(NSArray *)visualMsgs objectAtIndex:i];
+                        }
+                    }
                 }
-            }
-        } @catch(NSException *ex) {}
-        if (!item) {
-            item = [s valueForKey:@"currentMedia"] ?: [s valueForKey:@"currentVisualMessage"] ?: [s valueForKey:@"media"] ?: [s valueForKey:@"item"] ?: [s valueForKey:@"currentItem"];
-        }
-        id url = nil;
-        if (item) {
-            id u = [item valueForKey:@"videoURL"] ?: [item valueForKey:@"url"];
-            if ([u isKindOfClass:[NSURL class]]) url = (NSURL *)u;
-        }
-        updateLastPlayingMedia(item ?: self, url);
-    } @catch(NSException *e) {}
-}
-%end
-
-%hook IGDirectVisualMessageViewerController
-- (void)viewDidAppear:(BOOL)animated {
-    %orig;
-    @try {
-        id s = (id)self;
-        id item = nil;
-        @try {
-            id ds = [s valueForKey:@"_dataSource"] ?: [s valueForKey:@"dataSource"];
-            if (ds) {
-                id msg = [ds valueForKey:@"_currentMessage"] ?: [ds valueForKey:@"currentMessage"];
                 if (msg) {
                     item = [msg valueForKey:@"rawVideo"] ?: [msg valueForKey:@"video"] ?: [msg valueForKey:@"rawPhoto"] ?: [msg valueForKey:@"photo"];
+                    if (!item) item = msg;
                 }
             }
         } @catch(NSException *ex) {}
@@ -398,9 +381,48 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
             }
         }
         
-        // YENİ: Temel kontrol başarısız olursa, MediaExtractor'un derinlemesine analizini kullan!
-        if (!url) {
-            url = [MediaExtractor deepExtractURLFromObject:item ?: self];
+        updateLastPlayingMedia(item ?: self, url);
+    } @catch(NSException *e) {}
+}
+%end
+
+%hook IGDirectVisualMessageViewerController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    @try {
+        id s = (id)self;
+        id item = nil;
+        @try {
+            id ds = [s valueForKey:@"_dataSource"] ?: [s valueForKey:@"dataSource"];
+            if (ds) {
+                id msg = [ds valueForKey:@"_currentMessage"] ?: [ds valueForKey:@"currentMessage"];
+                if (!msg) {
+                    id visualMsgs = [ds valueForKey:@"visualMessages"];
+                    if ([visualMsgs isKindOfClass:[NSArray class]] && [(NSArray *)visualMsgs count] > 0) {
+                        NSNumber *idx = [s valueForKey:@"_currentVisualMessageIndex"];
+                        NSInteger i = idx ? [idx integerValue] : 0;
+                        if (i >= 0 && i < [(NSArray *)visualMsgs count]) {
+                            msg = [(NSArray *)visualMsgs objectAtIndex:i];
+                        }
+                    }
+                }
+                if (msg) {
+                    item = [msg valueForKey:@"rawVideo"] ?: [msg valueForKey:@"video"] ?: [msg valueForKey:@"rawPhoto"] ?: [msg valueForKey:@"photo"];
+                    if (!item) item = msg;
+                }
+            }
+        } @catch(NSException *ex) {}
+        if (!item) {
+            item = [s valueForKey:@"currentMedia"] ?: [s valueForKey:@"currentVisualMessage"] ?: [s valueForKey:@"media"] ?: [s valueForKey:@"item"] ?: [s valueForKey:@"currentItem"];
+        }
+        id url = nil;
+        if (item) {
+            id u = [item valueForKey:@"videoURL"] ?: [item valueForKey:@"url"];
+            if ([u isKindOfClass:[NSURL class]]) {
+                url = (NSURL *)u;
+            } else if ([u isKindOfClass:[NSString class]]) {
+                url = [NSURL URLWithString:(NSString *)u];
+            }
         }
         
         updateLastPlayingMedia(item ?: self, url);

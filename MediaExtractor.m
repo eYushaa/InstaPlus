@@ -83,6 +83,31 @@ static void determineBestCell(UIView *view, UIView * __strong *bestCell, CGFloat
     }
 }
 
+static UIView *findBestCellFromHitTest(UIView *rootView) {
+    if (!rootView) return nil;
+    CGRect screenBounds = [UIScreen mainScreen].bounds;
+    CGPoint center = CGPointMake(screenBounds.size.width / 2.0, screenBounds.size.height / 2.0);
+    UIView *hitView = [rootView hitTest:center withEvent:nil];
+    
+    UIView *v = hitView;
+    while (v) {
+        NSString *cls = NSStringFromClass([v class]);
+        if ([v isKindOfClass:[UICollectionViewCell class]] || [v isKindOfClass:[UITableViewCell class]] || [cls containsString:@"Cell"]) {
+            // We want to avoid generic container wrappers if possible, but hitTest usually returns the deepest child,
+            // so if we traverse up and hit a Cell, it's very likely the exact inner cell (like IGFeedItemPhotoCell).
+            if (![cls containsString:@"Container"] && ![cls containsString:@"Wrapper"]) {
+                return v;
+            }
+        }
+        v = v.superview;
+    }
+    
+    UIView *bestCell = nil;
+    CGFloat maxArea = 0;
+    determineBestCell(rootView, &bestCell, &maxArea);
+    return bestCell;
+}
+
 static NSInteger detectMediaTypeFromCell(UIView *cell) {
     if (!cell) return 0;
     
@@ -268,7 +293,7 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         }
     } @catch(NSException *e) {}
 
-    NSArray *versionPropNames = @[@"videoVersions", @"video_versions", @"videoUrls", @"typed_video_urls", @"video_versions_dict"];
+    NSArray *versionPropNames = @[@"videoVersions", @"video_versions", @"videoUrls", @"typed_video_urls", @"video_versions_dict", @"videoVersionDictionaries", @"_videoVersions", @"_videoVersionDictionaries"];
     for (NSString *propName in versionPropNames) {
         @try {
             id versions = [obj valueForKey:propName];
@@ -321,7 +346,7 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         @"currentItem", @"item", @"post", @"videoSpec", @"visualMessage",
         @"directVisualMessage", @"content", @"mediaContent", @"message",
         @"messageItem", @"currentVisualMessage", @"sundialVideo", @"model", @"viewModel",
-        @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource"
+        @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo", @"rawPhoto"
     ];
     for (NSString *subName in subObjNames) {
         @try {
@@ -574,7 +599,7 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         } @catch(NSException *e) {}
     }
     
-    NSArray *subObjNames = @[@"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource"];
+    NSArray *subObjNames = @[@"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo", @"rawPhoto"];
     for (NSString *subName in subObjNames) {
         @try {
             id subObj = [obj valueForKey:subName];
@@ -675,10 +700,9 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         }
     }
     
-    CGFloat maxArea = 0;
     UIView *bestCell = nil;
     if (keyWindow) {
-        determineBestCell(keyWindow, &bestCell, &maxArea);
+        bestCell = findBestCellFromHitTest(keyWindow);
     }
     
     BOOL isVideoCell = NO;

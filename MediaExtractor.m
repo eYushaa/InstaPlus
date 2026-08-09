@@ -497,7 +497,7 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
     
     NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
     
-    if (gLastPlayingMediaObject && (now - gLastPlayingVideoTime < 120.0)) {
+    if (gLastPlayingMediaObject && (now - gLastPlayingVideoTime < 5.0)) {
         NSURL *progURL = extractVideoURLFromObject(gLastPlayingMediaObject, log);
         if (progURL) {
             [log appendFormat:@"[Step 1] Found video URL from hook media object!\n"];
@@ -514,7 +514,7 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
         }
     }
     
-    if (gLastPlayingVideoURL && (now - gLastPlayingVideoTime < 120.0)) {
+    if (gLastPlayingVideoURL && (now - gLastPlayingVideoTime < 5.0)) {
         if (![gLastPlayingVideoURL isFileURL]) {
             [log appendFormat:@"[Step 3] Found video URL from hook live URL!\n"];
             return gLastPlayingVideoURL;
@@ -586,6 +586,12 @@ static UIViewController *getTopViewController(UIViewController *rootViewControll
 // 3. HD PHOTO EXTRACTION ENGINE
 // ============================================================================
 
++ (void)clearGlobalVideoCache {
+    gLastPlayingVideoURL = nil;
+    gLastPlayingMediaObject = nil;
+    gLastPlayingVideoTime = 0;
+}
+
 static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet *visitedObjects, NSInteger carouselIndex) {
     if (!obj || depth > 4) return nil;
     if ([visitedObjects containsObject:obj]) return nil;
@@ -648,7 +654,7 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         } @catch(NSException *e) {}
     }
     
-    NSArray *subObjNames = @[@"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo", @"rawPhoto"];
+    NSArray *subObjNames = @[@"photo", @"rawPhoto", @"imageSpec", @"photoSpec", @"image", @"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo"];
     for (NSString *subName in subObjNames) {
         @try {
             id subObj = [obj valueForKey:subName];
@@ -917,13 +923,11 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             return ret;
         }
         
-        NSURL *videoURL = extractVideoURLFromObject(bestCell, log);
-        if (videoURL && isStrictVideoURL(videoURL.absoluteString)) {
-            NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": videoURL}];
-            NSString *u = extractUsernameFromObject(bestCell);
-            if (u) ret[@"username"] = u;
-            return ret;
-        }
+        // Never fall back to video extraction if it's explicitly a photo cell!
+        NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo"}];
+        NSString *u = extractUsernameFromObject(bestCell);
+        if (u) ret[@"username"] = u;
+        return ret;
     } 
     else {
         [log appendFormat:@"[MediaExtractor] Unknown cell type. Trying both...\n"];

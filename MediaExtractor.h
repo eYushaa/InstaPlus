@@ -15,5 +15,6 @@
 
 // Exposed for Tweak.x to deeply extract URL from highly nested Instagram objects
 + (NSURL *)deepExtractURLFromObject:(id)obj;
++ (void)clearGlobalVideoCache;
 
 @end

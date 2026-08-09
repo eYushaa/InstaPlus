@@ -162,6 +162,7 @@
                     }
                 });
             });
+            [MediaExtractor clearGlobalVideoCache];
             return YES;
         } else {
             // Explicitly detected video, but URL extraction failed. DO NOT SAVE PHOTO SCREENSHOT!
@@ -195,6 +196,7 @@
     if (capturedMedia) {
         NSError *error = nil;
         BOOL success = [[LocalPhotoManager sharedManager] saveImage:capturedMedia forUsername:username error:&error];
+        [MediaExtractor clearGlobalVideoCache];
         if (success) {
             if (showToast) [self showToast:[NSString stringWithFormat:@"Fotoğraf @%@ klasörüne kaydedildi!", username]];
             return YES;
@@ -203,6 +205,7 @@
         }
     }
     
+    [MediaExtractor clearGlobalVideoCache];
     [self showAlertWithTitle:@"Hata (Log)" message:debugLog];
     return NO;
 }

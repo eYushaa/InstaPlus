@@ -446,7 +446,7 @@
         NSURL *setModelUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@/set_model", urlStr]];
         NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:setModelUrl];
         req.HTTPMethod = @"POST";
-        NSString *bodyStr = [NSString stringWithFormat:@"model_id=%@&index_ratio=%f", [modelStr stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]], self.indexSlider.value];
+        NSString *bodyStr = [NSString stringWithFormat:@"model_id=%@", [modelStr stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]]];
         req.HTTPBody = [bodyStr dataUsingEncoding:NSUTF8StringEncoding];
         [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
         [[[NSURLSession sharedSession] dataTaskWithRequest:req] resume];

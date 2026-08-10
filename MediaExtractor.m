@@ -721,7 +721,7 @@ static NSString *extractUsernameFromObject(id obj) {
         } @catch(NSException *e) {}
     }
     
-    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem"];
+    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem", @"currentMedia", @"currentItem", @"storyItem"];
     for (NSString *prop in modelProps) {
         @try {
             id model = [obj valueForKey:prop];
@@ -912,13 +912,13 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         NSString *topVCClass = NSStringFromClass([topVC class]);
         [log appendFormat:@"[MediaExtractor] Searching TopVC: %@\n", topVCClass];
         
-        if ([topVCClass containsString:@"DirectVisualMessage"] || [topVCClass containsString:@"DMVisual"]) {
+        if ([topVCClass containsString:@"DirectVisualMessage"] || [topVCClass containsString:@"DMVisual"] || [topVCClass containsString:@"StoryViewer"] || [topVCClass containsString:@"StoryFullscreen"]) {
             NSURL *dmVideoURL = [self deepExtractURLFromObject:topVC];
             if (!dmVideoURL) {
                 dmVideoURL = [self extractActiveVideoURLFromScreenWithLog:log];
             }
             if (dmVideoURL && isStrictVideoURL(dmVideoURL.absoluteString)) {
-                [log appendFormat:@"[MediaExtractor] Success! Extracted DM VIDEO URL: %@\n", dmVideoURL.lastPathComponent];
+                [log appendFormat:@"[MediaExtractor] Success! Extracted TOP VC VIDEO URL: %@\n", dmVideoURL.lastPathComponent];
                 NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": dmVideoURL}];
                 NSString *u = extractUsernameFromObject(topVC);
                 if (u) ret[@"username"] = u;
@@ -927,11 +927,16 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
             
             NSURL *dmPhotoURL = extractPhotoURLFromObject(topVC);
             if (dmPhotoURL && isStrictPhotoURL(dmPhotoURL.absoluteString)) {
-                [log appendFormat:@"[MediaExtractor] Success! Extracted DM PHOTO URL: %@\n", dmPhotoURL.lastPathComponent];
+                [log appendFormat:@"[MediaExtractor] Success! Extracted TOP VC PHOTO URL: %@\n", dmPhotoURL.lastPathComponent];
                 NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": dmPhotoURL}];
                 NSString *u = extractUsernameFromObject(topVC);
                 if (u) ret[@"username"] = u;
                 return ret;
+            }
+            
+            if ([topVCClass containsString:@"Story"]) {
+                [log appendFormat:@"[MediaExtractor] In StoryViewer but failed to extract media. Aborting to prevent feed fallback.\n"];
+                return nil;
             }
         }
         

@@ -5,7 +5,7 @@
 **The Ultimate Instagram Power-Up Tweak for iOS**
 
 ![iOS](https://img.shields.io/badge/iOS-14.0%2B-blue?style=for-the-badge&logo=apple)
-![Instagram](https://img.shields.io/badge/Instagram-Latest-E4405F?style=for-the-badge&logo=instagram)
+![Instagram](https://img.shields.io/badge/Instagram-v441.0.0-E4405F?style=for-the-badge&logo=instagram)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 *Transform your Instagram experience with real-time AI voice conversion, ultimate privacy controls, and power-user features.*

@@ -34,7 +34,7 @@
   * Blazing fast scrolling with background thumbnail generation.
 * **Smart Story Downloader:** Download stories seamlessly with accurate username detection and precise photo/video extraction.
 * **Gallery to Instant Snaps:** Send photos/videos from your camera roll as freshly captured "Instant" snaps.
-* **One-Tap Media Downloader:** Save Posts, Reels, Stories, and IGTV directly to your Photos app or internal gallery via a simple long-press.
+* **One-Tap Media Downloader:** Save Posts, Reels, Stories, IGTV, and DM Media (Photos/Videos) directly to your Photos app or internal gallery via a custom download button.
 
 ### 👻 Privacy & Customization
 * **Ultimate Ghost Mode:**
@@ -97,7 +97,7 @@
   * Arka planda küçük resim yükleme teknolojisiyle sıfır kasma, akıcı kaydırma deneyimi.
 * **Akıllı Hikaye İndirici:** Hikayeleri doğru kullanıcı adları ve orijinal formatlarıyla (fotoğraf/video ayrımıyla) kusursuzca indirin.
 * **Galeriden Şipşak Fotoğraf:** Galerinizdeki medya dosyalarını sanki o saniye kameradan çekilmiş gibi "Şipşak" formatında gönderin.
-* **Tek Dokunuşla Medya İndirici:** Gönderi, Reels ve Hikayeleri basit bir uzun basma hareketiyle doğrudan film rulosuna veya uygulamanın dahili galerisine kaydedin.
+* **Tek Dokunuşla Medya İndirici:** Gönderi, Reels, Hikayeler, IGTV ve DM Medyalarını (Fotoğraf/Video) özel indirme butonuyla doğrudan film rulosuna veya uygulamanın dahili galerisine kaydedin.
 
 ### 👻 Gizlilik & Özelleştirme
 * **Gelişmiş Hayalet Modu (Ghost Mode):**

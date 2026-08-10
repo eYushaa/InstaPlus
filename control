@@ -1,5 +1,5 @@
-Package: com.egitim.instaplus
-Name: InstaPlus
+Package: com.egitim.instaplusv2
+Name: InstaPlusV2
 Depends: mobilesubstrate
 Version: 1.0.0
 Architecture: iphoneos-arm

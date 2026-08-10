@@ -14,9 +14,9 @@
     [super viewDidLoad];
     self.title = @"Kaydedilen Kullanıcılar";
     
-    // Tümü Butonu (Sol Üst)
+    // Tümü Butonu (Sağ Üst)
     UIBarButtonItem *allItem = [[UIBarButtonItem alloc] initWithTitle:@"Tümü" style:UIBarButtonItemStylePlain target:self action:@selector(openAllMedia)];
-    self.navigationItem.leftBarButtonItem = allItem;
+    self.navigationItem.rightBarButtonItem = allItem;
     
     // Arama Çubuğu
     self.searchController = [[UISearchController alloc] initWithSearchResultsController:nil];

@@ -4,7 +4,7 @@
 #import <AVKit/AVKit.h>
 #import <Photos/Photos.h>
 
-@interface UserGalleryViewController () <UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout>
+@interface UserGalleryViewController () <UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout, UIGestureRecognizerDelegate>
 @property (nonatomic, strong) NSString *username;
 @property (nonatomic, strong) NSArray<NSString *> *mediaPaths;
 @property (nonatomic, strong) UICollectionView *collectionView;
@@ -15,6 +15,95 @@
 @property (nonatomic, strong) UIBarButtonItem *exportItem;
 @property (nonatomic, strong) UIBarButtonItem *selectItem;
 @property (nonatomic, strong) UIBarButtonItem *cancelItem;
+@property (nonatomic, strong) UIBarButtonItem *selectAllItem;
+@property (nonatomic, strong) UIPanGestureRecognizer *panGesture;
+@property (nonatomic, assign) BOOL isSelectingWithPan;
+@end
+
+@interface SingleMediaViewController : UIViewController
+@property (nonatomic, strong) NSString *mediaPath;
+@property (nonatomic, copy) void (^onDelete)(NSString *path);
+@end
+
+@implementation SingleMediaViewController
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = [UIColor blackColor];
+    
+    NSString *lower = self.mediaPath.lowercaseString;
+    BOOL isVideo = [lower hasSuffix:@".mp4"] || [lower hasSuffix:@".mov"];
+    
+    if (isVideo) {
+        AVPlayer *player = [AVPlayer playerWithURL:[NSURL fileURLWithPath:self.mediaPath]];
+        AVPlayerViewController *playerVC = [[AVPlayerViewController alloc] init];
+        playerVC.player = player;
+        playerVC.view.frame = self.view.bounds;
+        playerVC.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [self addChildViewController:playerVC];
+        [self.view addSubview:playerVC.view];
+        [playerVC didMoveToParentViewController:self];
+        [player play];
+    } else {
+        UIImageView *fullImageView = [[UIImageView alloc] initWithFrame:self.view.bounds];
+        fullImageView.contentMode = UIViewContentModeScaleAspectFit;
+        fullImageView.image = [UIImage imageWithContentsOfFile:self.mediaPath];
+        fullImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [self.view addSubview:fullImageView];
+    }
+    
+    UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:@"Kapat" style:UIBarButtonItemStyleDone target:self action:@selector(close)];
+    self.navigationItem.rightBarButtonItem = closeBtn;
+    
+    UIBarButtonItem *delBtn = [[UIBarButtonItem alloc] initWithTitle:@"Sil" style:UIBarButtonItemStylePlain target:self action:@selector(deleteItem)];
+    delBtn.tintColor = [UIColor redColor];
+    UIBarButtonItem *flex = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
+    UIBarButtonItem *exportBtn = [[UIBarButtonItem alloc] initWithTitle:@"Film Rulosuna Aktar" style:UIBarButtonItemStylePlain target:self action:@selector(exportItem)];
+    
+    self.toolbarItems = @[delBtn, flex, exportBtn];
+}
+
+- (void)close {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)deleteItem {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Sil" message:@"Bu medyayı silmek istediğinize emin misiniz?" preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"İptal" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Sil" style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+        if (self.onDelete) {
+            self.onDelete(self.mediaPath);
+        }
+        [self close];
+    }]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)exportItem {
+    [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
+        if (status == PHAuthorizationStatusAuthorized) {
+            [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+                NSString *lower = self.mediaPath.lowercaseString;
+                if ([lower hasSuffix:@".mp4"] || [lower hasSuffix:@".mov"]) {
+                    [PHAssetChangeRequest creationRequestForAssetFromVideoAtFileURL:[NSURL fileURLWithPath:self.mediaPath]];
+                } else {
+                    [PHAssetChangeRequest creationRequestForAssetFromImageAtFileURL:[NSURL fileURLWithPath:self.mediaPath]];
+                }
+            } completionHandler:^(BOOL success, NSError * _Nullable error) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (success) {
+                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Başarılı" message:@"Medya film rulosuna kaydedildi." preferredStyle:UIAlertControllerStyleAlert];
+                        [alert addAction:[UIAlertAction actionWithTitle:@"Tamam" style:UIAlertActionStyleDefault handler:nil]];
+                        [self presentViewController:alert animated:YES completion:nil];
+                    } else {
+                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Hata" message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
+                        [alert addAction:[UIAlertAction actionWithTitle:@"Tamam" style:UIAlertActionStyleDefault handler:nil]];
+                        [self presentViewController:alert animated:YES completion:nil];
+                    }
+                });
+            }];
+        }
+    }];
+}
 @end
 
 @implementation UserGalleryViewController
@@ -50,6 +139,7 @@
 - (void)setupNavigationBar {
     self.selectItem = [[UIBarButtonItem alloc] initWithTitle:@"Seç" style:UIBarButtonItemStylePlain target:self action:@selector(toggleSelectionMode)];
     self.cancelItem = [[UIBarButtonItem alloc] initWithTitle:@"İptal" style:UIBarButtonItemStyleDone target:self action:@selector(toggleSelectionMode)];
+    self.selectAllItem = [[UIBarButtonItem alloc] initWithTitle:@"Tümünü Seç" style:UIBarButtonItemStylePlain target:self action:@selector(selectAllItems)];
     self.navigationItem.rightBarButtonItem = self.selectItem;
 }
 
@@ -68,6 +158,15 @@
     self.collectionView.allowsMultipleSelection = YES;
     [self.collectionView registerClass:[UICollectionViewCell class] forCellWithReuseIdentifier:@"MediaCell"];
     [self.view addSubview:self.collectionView];
+    
+    self.panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePanGesture:)];
+    self.panGesture.delegate = self;
+    [self.collectionView addGestureRecognizer:self.panGesture];
+    self.panGesture.enabled = NO;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    return YES;
 }
 
 - (void)setupBottomToolbar {
@@ -93,12 +192,16 @@
     
     if (self.isSelectionMode) {
         self.navigationItem.rightBarButtonItem = self.cancelItem;
+        self.navigationItem.leftBarButtonItem = self.selectAllItem;
         self.bottomToolbar.hidden = NO;
         self.collectionView.contentInset = UIEdgeInsetsMake(0, 0, 83, 0);
+        self.panGesture.enabled = YES;
     } else {
         self.navigationItem.rightBarButtonItem = self.selectItem;
+        self.navigationItem.leftBarButtonItem = nil;
         self.bottomToolbar.hidden = YES;
         self.collectionView.contentInset = UIEdgeInsetsZero;
+        self.panGesture.enabled = NO;
     }
     
     [self updateToolbarButtons];
@@ -111,8 +214,58 @@
     self.exportItem.enabled = hasSelection;
     if (self.isSelectionMode) {
         self.title = hasSelection ? [NSString stringWithFormat:@"%lu Seçili", (unsigned long)self.selectedIndexPaths.count] : @"Öğe Seçin";
+        if (self.selectedIndexPaths.count == self.mediaPaths.count && self.mediaPaths.count > 0) {
+            self.selectAllItem.title = @"Tümünü Bırak";
+        } else {
+            self.selectAllItem.title = @"Tümünü Seç";
+        }
     } else {
         self.title = [self.username isEqualToString:@"Tümü"] ? @"Tüm Medyalar" : [NSString stringWithFormat:@"@%@", self.username];
+    }
+}
+
+- (void)selectAllItems {
+    if (self.selectedIndexPaths.count == self.mediaPaths.count) {
+        [self.selectedIndexPaths removeAllObjects];
+        self.selectAllItem.title = @"Tümünü Seç";
+    } else {
+        for (NSInteger i = 0; i < self.mediaPaths.count; i++) {
+            [self.selectedIndexPaths addObject:[NSIndexPath indexPathForItem:i inSection:0]];
+        }
+        self.selectAllItem.title = @"Tümünü Bırak";
+    }
+    [self updateToolbarButtons];
+    [self.collectionView reloadData];
+}
+
+- (void)handlePanGesture:(UIPanGestureRecognizer *)gesture {
+    CGPoint location = [gesture locationInView:self.collectionView];
+    NSIndexPath *indexPath = [self.collectionView indexPathForItemAtPoint:location];
+    
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        if (indexPath) {
+            self.isSelectingWithPan = ![self.selectedIndexPaths containsObject:indexPath];
+            if (self.isSelectingWithPan) {
+                [self.selectedIndexPaths addObject:indexPath];
+            } else {
+                [self.selectedIndexPaths removeObject:indexPath];
+            }
+            [self.collectionView reloadItemsAtIndexPaths:@[indexPath]];
+            [self updateToolbarButtons];
+        }
+    } else if (gesture.state == UIGestureRecognizerStateChanged) {
+        if (indexPath) {
+            BOOL currentlySelected = [self.selectedIndexPaths containsObject:indexPath];
+            if (self.isSelectingWithPan && !currentlySelected) {
+                [self.selectedIndexPaths addObject:indexPath];
+                [self.collectionView reloadItemsAtIndexPaths:@[indexPath]];
+                [self updateToolbarButtons];
+            } else if (!self.isSelectingWithPan && currentlySelected) {
+                [self.selectedIndexPaths removeObject:indexPath];
+                [self.collectionView reloadItemsAtIndexPaths:@[indexPath]];
+                [self updateToolbarButtons];
+            }
+        }
     }
 }
 
@@ -135,15 +288,7 @@
     NSString *lower = path.lowercaseString;
     
     if ([lower hasSuffix:@".mp4"] || [lower hasSuffix:@".mov"]) {
-        AVURLAsset *asset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:path] options:nil];
-        AVAssetImageGenerator *generator = [[AVAssetImageGenerator alloc] initWithAsset:asset];
-        generator.appliesPreferredTrackTransform = YES;
-        CMTime time = CMTimeMake(1, 2);
-        CGImageRef imageRef = [generator copyCGImageAtTime:time actualTime:NULL error:NULL];
-        if (imageRef) {
-            imageView.image = [UIImage imageWithCGImage:imageRef];
-            CGImageRelease(imageRef);
-        }
+        imageView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
         
         UILabel *playBadge = [[UILabel alloc] initWithFrame:CGRectMake(cell.bounds.size.width - 26, cell.bounds.size.height - 26, 22, 22)];
         playBadge.text = @"▶";
@@ -154,6 +299,29 @@
         playBadge.layer.cornerRadius = 11;
         playBadge.clipsToBounds = YES;
         [imageView addSubview:playBadge];
+        
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            AVURLAsset *asset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:path] options:nil];
+            AVAssetImageGenerator *generator = [[AVAssetImageGenerator alloc] initWithAsset:asset];
+            generator.appliesPreferredTrackTransform = YES;
+            CMTime time = CMTimeMake(1, 2);
+            CGImageRef imageRef = [generator copyCGImageAtTime:time actualTime:NULL error:NULL];
+            if (imageRef) {
+                UIImage *thumb = [UIImage imageWithCGImage:imageRef];
+                CGImageRelease(imageRef);
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    UICollectionViewCell *currentCell = [collectionView cellForItemAtIndexPath:indexPath];
+                    if (currentCell) {
+                        for (UIView *v in currentCell.contentView.subviews) {
+                            if ([v isKindOfClass:[UIImageView class]]) {
+                                ((UIImageView *)v).image = thumb;
+                                break;
+                            }
+                        }
+                    }
+                });
+            }
+        });
     } else {
         imageView.image = [UIImage imageWithContentsOfFile:path];
     }
@@ -161,19 +329,48 @@
     [cell.contentView addSubview:imageView];
     
     if (self.isSelectionMode) {
+        BOOL isSelected = [self.selectedIndexPaths containsObject:indexPath];
+        
         UIView *overlay = [[UIView alloc] initWithFrame:cell.bounds];
-        overlay.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.4];
-        overlay.hidden = ![self.selectedIndexPaths containsObject:indexPath];
+        overlay.backgroundColor = isSelected ? [UIColor colorWithWhite:0.0 alpha:0.3] : [UIColor clearColor];
         overlay.tag = 999;
         
-        UILabel *check = [[UILabel alloc] initWithFrame:CGRectMake(cell.bounds.size.width - 30, 5, 25, 25)];
-        check.text = @"✅";
-        check.font = [UIFont systemFontOfSize:20];
-        check.backgroundColor = [UIColor whiteColor];
-        check.layer.cornerRadius = 12.5;
-        check.clipsToBounds = YES;
-        check.textAlignment = NSTextAlignmentCenter;
-        [overlay addSubview:check];
+        UIImageView *checkIcon = [[UIImageView alloc] initWithFrame:CGRectMake(cell.bounds.size.width - 28, 5, 24, 24)];
+        if (isSelected) {
+            if ([UIImage respondsToSelector:NSSelectorFromString(@"systemImageNamed:")]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                checkIcon.image = [UIImage performSelector:NSSelectorFromString(@"systemImageNamed:") withObject:@"checkmark.circle.fill"];
+                UIColor *blue = [UIColor blueColor];
+                if ([UIColor respondsToSelector:NSSelectorFromString(@"systemBlueColor")]) {
+                    blue = [UIColor performSelector:NSSelectorFromString(@"systemBlueColor")];
+                }
+                checkIcon.tintColor = blue;
+#pragma clang diagnostic pop
+            } else {
+                checkIcon.backgroundColor = [UIColor blueColor]; // Fallback
+            }
+            checkIcon.backgroundColor = [UIColor whiteColor];
+            checkIcon.layer.cornerRadius = 12;
+            checkIcon.clipsToBounds = YES;
+        } else {
+            if ([UIImage respondsToSelector:NSSelectorFromString(@"systemImageNamed:")]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                checkIcon.image = [UIImage performSelector:NSSelectorFromString(@"systemImageNamed:") withObject:@"circle"];
+#pragma clang diagnostic pop
+                checkIcon.tintColor = [UIColor whiteColor];
+            } else {
+                checkIcon.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.3];
+                checkIcon.layer.cornerRadius = 12;
+            }
+            checkIcon.layer.shadowColor = [UIColor blackColor].CGColor;
+            checkIcon.layer.shadowOffset = CGSizeMake(0, 0);
+            checkIcon.layer.shadowOpacity = 0.5;
+            checkIcon.layer.shadowRadius = 2;
+        }
+        
+        [overlay addSubview:checkIcon];
         [cell.contentView addSubview:overlay];
     }
     
@@ -195,42 +392,27 @@
     [collectionView deselectItemAtIndexPath:indexPath animated:YES];
     
     NSString *path = self.mediaPaths[indexPath.item];
-    NSString *lower = path.lowercaseString;
     
-    if ([lower hasSuffix:@".mp4"] || [lower hasSuffix:@".mov"]) {
-        NSURL *videoURL = [NSURL fileURLWithPath:path];
-        AVPlayer *player = [AVPlayer playerWithURL:videoURL];
-        AVPlayerViewController *playerVC = [[AVPlayerViewController alloc] init];
-        playerVC.player = player;
-        [self presentViewController:playerVC animated:YES completion:^{
-            [player play];
-        }];
-    } else {
-        UIImage *image = [UIImage imageWithContentsOfFile:path];
-        if (!image) return;
-        
-        UIViewController *fullScreenVC = [[UIViewController alloc] init];
-        fullScreenVC.view.backgroundColor = [UIColor blackColor];
-        
-        UIImageView *fullImageView = [[UIImageView alloc] initWithFrame:fullScreenVC.view.bounds];
-        fullImageView.contentMode = UIViewContentModeScaleAspectFit;
-        fullImageView.image = image;
-        fullImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [fullScreenVC.view addSubview:fullImageView];
-        
-        fullImageView.userInteractionEnabled = YES;
-        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissFullScreen:)];
-        [fullImageView addGestureRecognizer:tap];
-        
-        [self presentViewController:fullScreenVC animated:YES completion:nil];
-    }
-}
-
-- (void)dismissFullScreen:(UITapGestureRecognizer *)gesture {
-    UIViewController *vc = (UIViewController *)gesture.view.nextResponder.nextResponder;
-    if ([vc isKindOfClass:[UIViewController class]]) {
-        [vc dismissViewControllerAnimated:YES completion:nil];
-    }
+    SingleMediaViewController *singleVC = [[SingleMediaViewController alloc] init];
+    singleVC.mediaPath = path;
+    singleVC.onDelete = ^(NSString *deletedPath) {
+        [[LocalPhotoManager sharedManager] deleteMediaAtPath:deletedPath error:nil];
+        if ([self.username isEqualToString:@"Tümü"]) {
+            self.mediaPaths = [[LocalPhotoManager sharedManager] getAllMedia];
+        } else {
+            self.mediaPaths = [[LocalPhotoManager sharedManager] getMediaForUsername:self.username];
+        }
+        [self.collectionView reloadData];
+    };
+    
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:singleVC];
+    nav.navigationBar.barStyle = UIBarStyleBlack;
+    nav.navigationBar.tintColor = [UIColor whiteColor];
+    nav.toolbarHidden = NO;
+    nav.toolbar.barStyle = UIBarStyleBlack;
+    nav.toolbar.tintColor = [UIColor whiteColor];
+    
+    [self presentViewController:nav animated:YES completion:nil];
 }
 
 - (void)deleteSelectedItems {

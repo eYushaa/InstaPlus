@@ -19,8 +19,17 @@ static NSMutableSet *gSavedMediaKeys = nil;
     return [documentsDirectory stringByAppendingPathComponent:@"InstaPlus_Gallery"];
 }
 
+static NSTimeInterval gLastSavedPhotoTime = 0;
+
 - (BOOL)saveImage:(UIImage *)image forUsername:(NSString *)username error:(NSError **)error {
     if (!image || !username || username.length == 0) return NO;
+    
+    NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+    if (now - gLastSavedPhotoTime < 3.0) {
+        NSLog(@"[InstaPlus] Deduplication: photo already saved within last 3s. Skipping duplicate save.");
+        return YES;
+    }
+    gLastSavedPhotoTime = now;
     
     NSData *imageData = UIImageJPEGRepresentation(image, 0.95);
     if (!imageData || imageData.length == 0) return NO;

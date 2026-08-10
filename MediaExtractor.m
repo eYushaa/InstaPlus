@@ -680,7 +680,7 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         } @catch(NSException *e) {}
     }
     
-    NSArray *subObjNames = @[@"photo", @"rawPhoto", @"imageSpec", @"photoSpec", @"image", @"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo", @"currentStoryItem", @"storyViewerViewModel", @"currentStoryItemViewModel", @"story"];
+    NSArray *subObjNames = @[@"story", @"currentStoryItem", @"storyItem", @"currentStoryItemViewModel", @"storyViewerViewModel", @"currentItem", @"currentMedia", @"photo", @"rawPhoto", @"imageSpec", @"photoSpec", @"image", @"media", @"feedItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo"];
     for (NSString *subName in subObjNames) {
         @try {
             id subObj = [obj valueForKey:subName];
@@ -722,7 +722,7 @@ static NSString *extractUsernameFromObject(id obj) {
         } @catch(NSException *e) {}
     }
     
-    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem", @"currentMedia", @"currentItem", @"storyItem", @"currentStoryItem", @"storyViewerViewModel", @"currentStoryItemViewModel", @"story"];
+    NSArray *modelProps = @[@"currentStoryItem", @"storyItem", @"storyViewerViewModel", @"currentStoryItemViewModel", @"story", @"currentItem", @"currentMedia", @"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem"];
     for (NSString *prop in modelProps) {
         @try {
             id model = [obj valueForKey:prop];
@@ -890,6 +890,46 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
 // 4. MAIN ENTRY POINT: MEDIA TYPE INFERENCE + PRECISION EXTRACTION
 // ============================================================================
 
+static NSString *extractUsernameFromStoryObject(id obj) {
+    if (!obj) return nil;
+    NSArray *userProps = @[@"user", @"owner", @"author"];
+    NSArray *modelProps = @[@"currentStoryItem", @"storyItem", @"storyViewerViewModel", @"currentStoryItemViewModel", @"story", @"currentItem", @"currentMedia"];
+    for (NSString *prop in modelProps) {
+        @try {
+            id model = [obj valueForKey:prop];
+            if (model) {
+                for (NSString *uProp in userProps) {
+                    @try {
+                        id user = [model valueForKey:uProp];
+                        if (user) {
+                            id username = [user valueForKey:@"username"];
+                            if ([username isKindOfClass:[NSString class]] && [(NSString *)username length] > 0) {
+                                return (NSString *)username;
+                            }
+                        }
+                    } @catch(NSException *e) {}
+                }
+            }
+        } @catch(NSException *e) {}
+    }
+    return nil;
+}
+
+static NSURL *extractPhotoURLFromStoryObject(id obj) {
+    if (!obj) return nil;
+    NSArray *modelProps = @[@"currentStoryItem", @"storyItem", @"storyViewerViewModel", @"currentStoryItemViewModel", @"story", @"currentItem", @"currentMedia"];
+    for (NSString *prop in modelProps) {
+        @try {
+            id model = [obj valueForKey:prop];
+            if (model) {
+                NSURL *url = extractPhotoURLFromObject(model);
+                if (url) return url;
+            }
+        } @catch(NSException *e) {}
+    }
+    return nil;
+}
+
 + (NSDictionary *)extractActiveMediaContextFromScreenWithLog:(NSMutableString *)log {
     [log appendFormat:@"[MediaExtractor] Starting Context Extraction...\n"];
     
@@ -914,30 +954,60 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
         [log appendFormat:@"[MediaExtractor] Searching TopVC: %@\n", topVCClass];
         
         if ([topVCClass containsString:@"DirectVisualMessage"] || [topVCClass containsString:@"DMVisual"] || [topVCClass containsString:@"StoryViewer"] || [topVCClass containsString:@"StoryFullscreen"]) {
-            NSURL *dmVideoURL = [self deepExtractURLFromObject:topVC];
+            NSURL *dmVideoURL = extractVideoURLFromObject(topVC, log);
+            
             if (!dmVideoURL) {
                 dmVideoURL = [self extractActiveVideoURLFromScreenWithLog:log];
             }
+            
             if (dmVideoURL && isStrictVideoURL(dmVideoURL.absoluteString)) {
                 [log appendFormat:@"[MediaExtractor] Success! Extracted TOP VC VIDEO URL: %@\n", dmVideoURL.lastPathComponent];
                 NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": dmVideoURL}];
-                NSString *u = extractUsernameFromObject(topVC);
+                NSString *u = nil;
+                if ([topVCClass containsString:@"Story"]) {
+                    u = extractUsernameFromStoryObject(topVC);
+                } else {
+                    u = extractUsernameFromObject(topVC);
+                }
                 if (u) ret[@"username"] = u;
                 else if ([topVCClass containsString:@"Story"]) ret[@"username"] = @"Story_User";
                 return ret;
             }
             
-            NSURL *dmPhotoURL = extractPhotoURLFromObject(topVC);
+            // For photos, we use the dedicated story extractor to prevent fetching the background post
+            NSURL *dmPhotoURL = nil;
+            if ([topVCClass containsString:@"Story"]) {
+                dmPhotoURL = extractPhotoURLFromStoryObject(topVC);
+            } else {
+                dmPhotoURL = extractPhotoURLFromObject(topVC);
+            }
+            
             if (dmPhotoURL && isStrictPhotoURL(dmPhotoURL.absoluteString)) {
                 [log appendFormat:@"[MediaExtractor] Success! Extracted TOP VC PHOTO URL: %@\n", dmPhotoURL.lastPathComponent];
                 NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": dmPhotoURL}];
-                NSString *u = extractUsernameFromObject(topVC);
+                NSString *u = nil;
+                if ([topVCClass containsString:@"Story"]) {
+                    u = extractUsernameFromStoryObject(topVC);
+                } else {
+                    u = extractUsernameFromObject(topVC);
+                }
                 if (u) ret[@"username"] = u;
                 else if ([topVCClass containsString:@"Story"]) ret[@"username"] = @"Story_User";
                 return ret;
             }
             
+            // If it's a Story, dmPhotoURL extraction from models usually fails because of obfuscated IGImage.
+            // DO NOT fallback to extractPhotoURLFromObject(topVC) because it hits the background feed!
             if ([topVCClass containsString:@"Story"]) {
+                UIImage *storyImage = [self extractLargestImageFromScreen];
+                if (storyImage) {
+                    [log appendFormat:@"[MediaExtractor] Success! Extracted Story PHOTO from screen.\n"];
+                    NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"image": storyImage}];
+                    NSString *u = extractUsernameFromStoryObject(topVC);
+                    if (u) ret[@"username"] = u;
+                    else ret[@"username"] = @"Story_User";
+                    return ret;
+                }
                 [log appendFormat:@"[MediaExtractor] In StoryViewer but failed to extract media. Aborting to prevent feed fallback.\n"];
                 return nil;
             }

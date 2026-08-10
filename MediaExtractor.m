@@ -505,7 +505,8 @@ static NSURL *extractVideoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         @"currentItem", @"item", @"post", @"videoSpec", @"visualMessage",
         @"directVisualMessage", @"content", @"mediaContent", @"message",
         @"messageItem", @"currentVisualMessage", @"sundialVideo", @"model", @"viewModel",
-        @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo", @"rawPhoto"
+        @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo", @"rawPhoto",
+        @"storyItem", @"currentStoryItem", @"storyViewerViewModel", @"currentStoryItemViewModel", @"story"
     ];
     for (NSString *subName in subObjNames) {
         @try {
@@ -679,7 +680,7 @@ static NSURL *extractPhotoURLFromObjectInternal(id obj, int depth, NSMutableSet 
         } @catch(NSException *e) {}
     }
     
-    NSArray *subObjNames = @[@"photo", @"rawPhoto", @"imageSpec", @"photoSpec", @"image", @"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo"];
+    NSArray *subObjNames = @[@"photo", @"rawPhoto", @"imageSpec", @"photoSpec", @"image", @"media", @"feedItem", @"currentMedia", @"currentItem", @"item", @"post", @"visualMessage", @"directVisualMessage", @"content", @"mediaContent", @"message", @"messageItem", @"currentVisualMessage", @"viewModel", @"model", @"storyItem", @"carouselItem", @"sundialVideo", @"dataSource", @"currentMessage", @"_currentMessage", @"_dataSource", @"rawVideo", @"currentStoryItem", @"storyViewerViewModel", @"currentStoryItemViewModel", @"story"];
     for (NSString *subName in subObjNames) {
         @try {
             id subObj = [obj valueForKey:subName];
@@ -721,7 +722,7 @@ static NSString *extractUsernameFromObject(id obj) {
         } @catch(NSException *e) {}
     }
     
-    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem", @"currentMedia", @"currentItem", @"storyItem"];
+    NSArray *modelProps = @[@"post", @"item", @"media", @"feedItem", @"viewModel", @"model", @"messageItem", @"currentMedia", @"currentItem", @"storyItem", @"currentStoryItem", @"storyViewerViewModel", @"currentStoryItemViewModel", @"story"];
     for (NSString *prop in modelProps) {
         @try {
             id model = [obj valueForKey:prop];
@@ -922,6 +923,7 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
                 NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"video", @"url": dmVideoURL}];
                 NSString *u = extractUsernameFromObject(topVC);
                 if (u) ret[@"username"] = u;
+                else if ([topVCClass containsString:@"Story"]) ret[@"username"] = @"Story_User";
                 return ret;
             }
             
@@ -931,6 +933,7 @@ static void traverseViewHierarchy(UIView *view, UIImageView * __strong *largestI
                 NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{@"type": @"photo", @"url": dmPhotoURL}];
                 NSString *u = extractUsernameFromObject(topVC);
                 if (u) ret[@"username"] = u;
+                else if ([topVCClass containsString:@"Story"]) ret[@"username"] = @"Story_User";
                 return ret;
             }
             

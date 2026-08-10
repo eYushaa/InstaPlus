@@ -75,7 +75,7 @@
 
 - [ ] **Dedicated RVC-Server:** A custom lightweight RVC-Server backend will be introduced.
 - [ ] **Full Localization:** English UI translation for the embedded Mod Menu.
-- [ ] **Stability Boost:** Performance tweaks for Ghost Mode and Media Downloader.
+- [x] **Stability Boost:** Performance tweaks for Ghost Mode and Media Downloader.
 
 </details>
 
@@ -138,7 +138,7 @@
 
 - [ ] **Özel RVC Sunucusu:** Projeye özel RVC-Server backendi (arka planı) eklenecektir.
 - [ ] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği.
-- [ ] **Kararlılık İyileştirmeleri:** Medya İndirici ve Hayalet Modu için performans düzenlemeleri.
+- [x] **Kararlılık İyileştirmeleri:** Medya İndirici ve Hayalet Modu için performans düzenlemeleri.
 
 </details>
 

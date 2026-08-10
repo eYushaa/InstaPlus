@@ -73,7 +73,7 @@
 
 ## 🔮 Roadmap & Upcoming Features
 
-- [ ] **Dedicated RVC-Server:** A custom lightweight RVC-Server backend will be introduced.
+- [x] **Dedicated RVC-Server:** A custom lightweight [RVC-Server](https://github.com/eYushaa/RVC-FK) backend will be introduced.
 - [ ] **Full Localization:** English UI translation for the embedded Mod Menu.
 - [x] **Stability Boost:** Performance tweaks for Ghost Mode and Media Downloader.
 
@@ -136,7 +136,7 @@
 
 ## 🔮 Gelecek Güncellemeler (Roadmap)
 
-- [ ] **Özel RVC Sunucusu:** Projeye özel RVC-Server backendi (arka planı) eklenecektir.
+- [x] **Özel RVC Sunucusu:** Projeye özel [RVC-Server](https://github.com/eYushaa/RVC-FK) backendi (arka planı) eklenecektir.
 - [ ] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği.
 - [x] **Kararlılık İyileştirmeleri:** Medya İndirici ve Hayalet Modu için performans düzenlemeleri.
 

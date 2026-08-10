@@ -46,6 +46,20 @@
 
 ---
 
+## 📝 Changelog
+
+### v1.0.1
+* **Massive Gallery UI Overhaul:**
+  * Implemented swipe-to-select and "Select All" functionalities.
+  * Added a dedicated SingleMediaViewController with a bottom toolbar for viewing, deleting, and exporting single items natively.
+  * Solved scrolling performance issues by moving video thumbnail generation to a background thread.
+  * Replaced custom UI elements with native iOS SF Symbols for a premium look and feel.
+* **Bug Fixes:**
+  * Fixed an issue in `MediaExtractor` where story videos were occasionally saved as photos or extracted with the background feed's username.
+  * Added a 3-second deduplication delay to prevent saving the same photo from DMs twice.
+
+---
+
 ## 🚀 Installation Guide
 
 > [!IMPORTANT]
@@ -92,6 +106,20 @@
   * "Yazıyor..." bildirimini engelleyin.
 * **Sıfır Reklam Deneyimi:** Akış ve hikayelerdeki tüm sponsorlu içerikleri tamamen engelleyin.
 * **Gömülü Mod Menüsü:** RVC modellerini seçmek ve gürültü engelleyici ayarlarını yapmak için Instagram'ın orijinal Ayarlar menüsüne entegre arayüz.
+
+---
+
+## 📝 Güncelleme Geçmişi (Changelog)
+
+### v1.0.1
+* **Gelişmiş Galeri Arayüzü Güncellemesi:**
+  * Parmağı kaydırarak çoklu seçim ve "Tümünü Seç" özellikleri eklendi.
+  * Medyaları tekil olarak görüntülemek, silmek ve film rulosuna aktarmak için orijinal Apple tarzında araç çubuğuna sahip özel bir medya görüntüleyici eklendi.
+  * Video küçük resimlerinin oluşturulması arka plana taşınarak kaydırma (scrolling) sırasında yaşanan kasma sorunu tamamen çözüldü.
+  * Emoji tabanlı eski seçim ikonları yerini orijinal iOS ikonlarına bıraktı.
+* **Hata Düzeltmeleri (Bug Fixes):**
+  * `MediaExtractor` motorunda yaşanan; hikaye videolarının fotoğraf olarak kaydedilmesi ve arka plandaki akıştan yanlış kullanıcı adı çekilmesi sorunları giderildi.
+  * DM'lerden fotoğraf kaydederken çift kaydetme (duplicate) hatasını önlemek için 3 saniyelik bir gecikme/koruma kalkanı eklendi.
 
 ---
 

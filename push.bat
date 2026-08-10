@@ -1,3 +1,3 @@
 git add -u
-git commit -m "chore: remove sparkle-ig-temp and temporary files"
+git commit -m "latest bug fixes"
 git push --set-upstream origin main

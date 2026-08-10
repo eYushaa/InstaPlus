@@ -65,7 +65,7 @@
 > [!IMPORTANT]
 > Make sure to follow step 3 carefully to avoid sideload detection!
 
-1. Download the latest `.dylib` from the [Releases](#) page.
+1. Download the latest `.dylib` easily from the [Latest Release](https://github.com/eYushaa/InstaPlus/releases/latest) page.
 2. Inject the `.dylib` into a decrypted Instagram `.ipa` using **Sideloadly**.
 3. **Crucial:** Enable **Sideload Spoofer** in Sideloadly's advanced settings before installation.
 
@@ -128,7 +128,7 @@
 > [!CAUTION]
 > Uygulamanın sorunsuz çalışması için 3. adımı eksiksiz uyguladığınızdan emin olun!
 
-1. En güncel `.dylib` dosyasını [Releases](#) (Sürümler) sayfasından indirin.
+1. En güncel `.dylib` dosyasını [En Son Sürüm (Latest Release)](https://github.com/eYushaa/InstaPlus/releases/latest) sayfasından kolayca indirin.
 2. `.dylib` dosyasını şifresi çözülmüş (decrypted) bir Instagram `.ipa` dosyasına **Sideloadly** ile enjekte edin.
 3. **Önemli:** Yükleme aşamasından önce Sideloadly gelişmiş ayarlarından **Sideload Spoofer** seçeneğini aktif edin.
 

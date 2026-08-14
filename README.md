@@ -6,7 +6,7 @@
 
 **The Ultimate Instagram Power-Up Tweak for iOS**
 
-![iOS](https://img.shields.io/badge/iOS-14.0%2B-blue?style=for-the-badge&logo=apple)
+![iOS](https://img.shields.io/badge/iOS-15.0%2B-blue?style=for-the-badge&logo=apple)
 ![Instagram](https://img.shields.io/badge/Instagram-v441.0.0-E4405F?style=for-the-badge&logo=instagram)
 ![License](https://img.shields.io/badge/License-Custom_BY--NC-orange?style=for-the-badge)
 
@@ -51,6 +51,7 @@
   * Watch Stories 100% anonymously.
   * Suppress "Typing..." indicators.
 * **100% Ad-Free Feed:** Block sponsored posts and story ads effortlessly.
+* **Action Confirmation Shields:** Prevents accidental interactions by adding confirmation dialogs for liking posts/reels (double-tap and heart button), following users, and initiating audio/video calls in DMs.
 * **Native Mod Menu:** Tweak settings, control background noise reduction, and select RVC models directly within Instagram's original Settings.
 
 ---
@@ -140,6 +141,7 @@
   * Hikayeleri izlerken tamamen anonim kalın.
   * "Yazıyor..." bildirimini engelleyin.
 * **Sıfır Reklam Deneyimi:** Akış ve hikayelerdeki tüm sponsorlu içerikleri tamamen engelleyin.
+* **Etkileşim Onay Kalkanı:** Yanlışlıkla etkileşime girmeyi önlemek için post/reels beğenilerinde (çift tıklama ve kalp butonu), kullanıcı takiplerinde ve DM'lerdeki sesli/görüntülü aramalarda çalışan özel onay uyarıları.
 * **Gömülü Mod Menüsü:** RVC modellerini seçmek ve gürültü engelleyici ayarlarını yapmak için Instagram'ın orijinal Ayarlar menüsüne entegre arayüz.
 
 ---

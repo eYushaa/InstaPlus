@@ -71,8 +71,7 @@
   * Solved scrolling performance issues by moving video thumbnail generation to a background thread.
   * Replaced custom UI elements with native iOS SF Symbols for a premium look and feel.
 * **Bug Fixes:**
-  * Fixed an issue in `MediaExtractor` where story videos were occasionally saved as photos or extracted with the background feed's username.
-  * Added a 3-second deduplication delay to prevent saving the same photo from DMs twice.
+  * **Media Downloader Overhaul:** Resolved core issues in the `MediaExtractor` engine where stories were incorrectly saved as photos, wrong usernames were assigned from the feed, and duplicate images were saved from DMs. You can now comfortably download Posts, Reels, Stories, and DM photos/videos in the highest possible quality without any issues.
 
 ---
 
@@ -89,14 +88,6 @@
 
 ## 🔮 Roadmap & Upcoming Features
 
-### v1.0.1
-- [x] **Dedicated RVC-Server:** A custom lightweight [RVC-Server](https://github.com/eYushaa/RVC-FK) backend.
-- [x] **Stability Boost:** Performance tweaks for Ghost Mode and Media Downloader.
-
-### v1.0.2
-- [x] **Full Localization:** English UI translation for the embedded Mod Menu.
-- [x] **Bug Fixes:** Feed double-tap liking and follow features were activated, follow confirmation dialog was added.
-
 ### v1.0.3 (Upcoming)
 - [ ] **Bug Fixes & Performance:** Continuous improvements for a seamless user experience.
 - [ ] **Language Support Expansion:** Adding support for more languages beyond Turkish and English.
@@ -104,6 +95,15 @@
 - [ ] **Auto-Scroll Reels:** Automatically swipe to the next Reel when the current one finishes.
 - [ ] **Hide Online Status:** Appear offline while still being able to see when others are active.
 - [ ] **Non-Followers Tracker:** A dedicated section in your Following list to see who doesn't follow you back, with an auto-unfollow capability.
+
+### v1.0.2
+- [x] **Full Localization:** English UI translation for the embedded Mod Menu.
+- [x] **Bug Fixes:** Feed double-tap liking and follow features were activated, follow confirmation dialog was added.
+
+### v1.0.1
+- [x] **Dedicated RVC-Server:** A custom lightweight [RVC-Server](https://github.com/eYushaa/RVC-FK) backend.
+- [x] **Stability Boost:** Performance tweaks for Ghost Mode and Media Downloader.
+- [x] **Media Downloader Bug Fixes:** Resolved extraction (wrong username/format) and duplication bugs, allowing seamless high-quality downloads for Posts, Reels, Stories, and DMs.
 
 </details>
 
@@ -160,8 +160,7 @@
   * Video küçük resimlerinin oluşturulması arka plana taşınarak kaydırma (scrolling) sırasında yaşanan kasma sorunu tamamen çözüldü.
   * Emoji tabanlı eski seçim ikonları yerini orijinal iOS ikonlarına bıraktı.
 * **Hata Düzeltmeleri (Bug Fixes):**
-  * `MediaExtractor` motorunda yaşanan; hikaye videolarının fotoğraf olarak kaydedilmesi ve arka plandaki akıştan yanlış kullanıcı adı çekilmesi sorunları giderildi.
-  * DM'lerden fotoğraf kaydederken çift kaydetme (duplicate) hatasını önlemek için 3 saniyelik bir gecikme/koruma kalkanı eklendi.
+  * **Media Downloader (Medya İndirici) İyileştirmeleri:** `MediaExtractor` motorunda hikaye videolarının fotoğraf olarak kaydedilmesi, yanlış kullanıcı adı çekilmesi ve DM'lerde aynı medyanın çift kaydedilmesi gibi kritik sorunlar tamamen giderildi. Artık postları, reels videolarını, hikayeleri (story) ve DM fotoğraf/videolarını en yüksek kalitede, kusursuz bir şekilde indirebilirsiniz.
 
 ---
 
@@ -178,14 +177,6 @@
 
 ## 🔮 Gelecek Güncellemeler (Roadmap)
 
-### v1.0.1
-- [x] **Özel RVC Sunucusu:** Projeye özel [RVC-Server](https://github.com/eYushaa/RVC-FK) backendi (arka planı) eklenecektir.
-- [x] **Kararlılık İyileştirmeleri:** Medya İndirici ve Hayalet Modu için performans düzenlemeleri.
-
-### v1.0.2
-- [x] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği eklendi.
-- [x] **Hata Düzeltmeleri:** Akıştaki (Feed) çift tıklama (double-tap) ile beğenme ve takip etme özellikleri aktif edildi, takip etme uyarısı eklendi.
-
 ### v1.0.3 (Yakında)
 - [ ] **Bug Fixes & Performance:** Genel hata düzeltmeleri ve hız aşırtmaları.
 - [ ] **Dil Desteği Genişletmesi:** Farklı global diller için destek sağlanması.
@@ -193,6 +184,15 @@
 - [ ] **Reelsleri Otomatik Geçme:** İzlenen Reels videosu bittiğinde otomatik olarak diğerine kaydırma özelliği.
 - [ ] **Çevrimiçi Durumunu Gizleme:** Diğer kişilerin aktifliğini görebilirken, kendi çevrimiçi durumunuzu tamamen gizleme özelliği.
 - [ ] **Geri Takip Etmeyenler Asistanı:** "Takip Edilenler" sekmesine özel bir bölüm ekleyerek sizi takip etmeyenleri topluca görme ve otomatik takipten çıkma (auto-unfollow) özelliği.
+
+### v1.0.2
+- [x] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği eklendi.
+- [x] **Hata Düzeltmeleri:** Akıştaki (Feed) çift tıklama (double-tap) ile beğenme ve takip etme özellikleri aktif edildi, takip etme uyarısı eklendi.
+
+### v1.0.1
+- [x] **Özel RVC Sunucusu:** Projeye özel [RVC-Server](https://github.com/eYushaa/RVC-FK) backendi (arka planı) eklenecektir.
+- [x] **Kararlılık İyileştirmeleri:** Medya İndirici ve Hayalet Modu için performans düzenlemeleri.
+- [x] **Media Downloader (İndirici) Hata Düzeltmeleri:** Yanlış kullanıcı adı çekilmesi, hikaye ve DM kaydetme sorunları çözülerek post, reels ve hikayeleri en yüksek kalitede indirme imkanı sağlandı.
 
 </details>
 

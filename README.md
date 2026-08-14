@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/icon.jpeg" alt="InstaPlus Icon" width="120" style="border-radius:25px"/>
+
 # ✨ InstaPlus
 
 **The Ultimate Instagram Power-Up Tweak for iOS**
@@ -22,6 +24,10 @@
 <summary>🇬🇧 <b>English</b></summary>
 
 ## 🌟 Key Features
+
+<p align="center">
+  <img src="assets/mod_menu_en.jpeg" alt="InstaPlus Mod Menu" width="300" style="border-radius:15px"/>
+</p>
 
 ### 🎙️ AI Voice & Audio Engine
 * **Real-time AI Voice Changer (RVC):** Morph your voice in Direct Messages using Retrieval-based Voice Conversion models directly embedded into Instagram's native audio engine. *(Requires **w-okada/voice-changer** as the backend server).*
@@ -47,6 +53,14 @@
 ---
 
 ## 📝 Changelog
+
+### v1.0.2
+* **Full English Localization:** 
+  * The Mod Menu is now fully localized.
+  * Added an elegant language picker inside the Settings row to seamlessly toggle between English and Turkish.
+* **Confirmation Dialog Fixes:**
+  * Fixed an issue where the Double Tap and direct Like button actions bypassed the confirmation dialog on Feed and Reels.
+  * Added missing confirmation layers for audio and video calls in Direct Messages.
 
 ### v1.0.1
 * **Massive Gallery UI Overhaul:**
@@ -74,7 +88,7 @@
 ## 🔮 Roadmap & Upcoming Features
 
 - [x] **Dedicated RVC-Server:** A custom lightweight [RVC-Server](https://github.com/eYushaa/RVC-FK) backend will be introduced.
-- [ ] **Full Localization:** English UI translation for the embedded Mod Menu.
+- [x] **Full Localization:** English UI translation for the embedded Mod Menu.
 - [x] **Stability Boost:** Performance tweaks for Ghost Mode and Media Downloader.
 
 </details>
@@ -85,6 +99,10 @@
 <summary>🇹🇷 <b>Türkçe</b></summary>
 
 ## 🌟 Öne Çıkan Özellikler
+
+<p align="center">
+  <img src="assets/mod_menu_tr.jpeg" alt="InstaPlus Mod Menüsü" width="300" style="border-radius:15px"/>
+</p>
 
 ### 🎙️ Yapay Zeka Ses Teknolojisi
 * **Canlı AI Ses Değiştirici (RVC):** DM sesli mesajlarında sesinizi RVC modelleriyle anında dönüştürün. Instagram'ın yerel ses motoruyla sıfır gecikmeli tam entegrasyon. *(Arka plan sunucusu olarak **w-okada/voice-changer** kullanılmasını gerektirir).*
@@ -110,6 +128,14 @@
 ---
 
 ## 📝 Güncelleme Geçmişi (Changelog)
+
+### v1.0.2
+* **Tam İngilizce Dil Desteği:**
+  * Mod Menüsü tamamen yerelleştirildi (İngilizce & Türkçe).
+  * Ayarlar satırına İngilizce ve Türkçe arasında anında geçiş yapmanızı sağlayan şık bir dil seçici eklendi.
+* **Onay Ekranı (Confirmation) Düzeltmeleri:**
+  * Gönderilere doğrudan kalp butonuna basarak ve çift tıklama ile beğenme işlemlerinde onay ekranının çalışmaması sorunu giderildi.
+  * DM (Mesajlar) ekranındaki sesli ve görüntülü arama başlatma butonları için eksik olan onay kalkanı eklendi.
 
 ### v1.0.1
 * **Gelişmiş Galeri Arayüzü Güncellemesi:**
@@ -137,7 +163,7 @@
 ## 🔮 Gelecek Güncellemeler (Roadmap)
 
 - [x] **Özel RVC Sunucusu:** Projeye özel [RVC-Server](https://github.com/eYushaa/RVC-FK) backendi (arka planı) eklenecektir.
-- [ ] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği.
+- [x] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği eklendi.
 - [x] **Kararlılık İyileştirmeleri:** Medya İndirici ve Hayalet Modu için performans düzenlemeleri.
 
 </details>

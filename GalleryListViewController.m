@@ -1,6 +1,7 @@
 #import "GalleryListViewController.h"
 #import "UserGalleryViewController.h"
 #import "LocalPhotoManager.h"
+#import "InstaLocalization.h"
 
 @interface GalleryListViewController () <UISearchResultsUpdating>
 @property (nonatomic, strong) NSMutableArray<NSString *> *usernames;
@@ -12,17 +13,17 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"Kaydedilen Kullanıcılar";
+    self.title = L(@"saved_users");
     
     // Tümü Butonu (Sağ Üst)
-    UIBarButtonItem *allItem = [[UIBarButtonItem alloc] initWithTitle:@"Tümü" style:UIBarButtonItemStylePlain target:self action:@selector(openAllMedia)];
+    UIBarButtonItem *allItem = [[UIBarButtonItem alloc] initWithTitle:L(@"all") style:UIBarButtonItemStylePlain target:self action:@selector(openAllMedia)];
     self.navigationItem.rightBarButtonItem = allItem;
     
     // Arama Çubuğu
     self.searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
     self.searchController.searchResultsUpdater = self;
     self.searchController.obscuresBackgroundDuringPresentation = NO;
-    self.searchController.searchBar.placeholder = @"Kullanıcı Adı Ara...";
+    self.searchController.searchBar.placeholder = L(@"search_username");
     self.searchController.searchBar.barStyle = UIBarStyleBlack;
     self.navigationItem.searchController = self.searchController;
     self.definesPresentationContext = YES;
@@ -40,7 +41,7 @@
 }
 
 - (void)openAllMedia {
-    UserGalleryViewController *vc = [[UserGalleryViewController alloc] initWithUsername:@"Tümü"];
+    UserGalleryViewController *vc = [[UserGalleryViewController alloc] initWithUsername:L(@"all")];
     [self.navigationController pushViewController:vc animated:YES];
 }
 
@@ -74,7 +75,7 @@
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (self.filteredUsernames.count == 0) {
         UILabel *emptyLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height)];
-        emptyLabel.text = self.searchController.isActive ? @"Sonuç bulunamadı." : @"Henüz hiç kullanıcı kaydedilmemiş.";
+        emptyLabel.text = self.searchController.isActive ? L(@"no_results") : L(@"no_users_saved");
         emptyLabel.textAlignment = NSTextAlignmentCenter;
         emptyLabel.textColor = [UIColor grayColor];
         self.tableView.backgroundView = emptyLabel;
@@ -111,12 +112,12 @@
     if (editingStyle == UITableViewCellEditingStyleDelete) {
         NSString *usernameToDelete = self.filteredUsernames[indexPath.row];
         
-        UIAlertController *confirmAlert = [UIAlertController alertControllerWithTitle:@"Kullanıcıyı Sil"
-                                                                               message:[NSString stringWithFormat:@"@%@ kullanıcısına ait tüm kaydedilmiş fotoğraf ve videolar kalıcı olarak silinecek. Emin misiniz?", usernameToDelete]
+        UIAlertController *confirmAlert = [UIAlertController alertControllerWithTitle:L(@"delete_user")
+                                                                               message:[NSString stringWithFormat:L(@"delete_user_confirm_format"), usernameToDelete]
                                                                         preferredStyle:UIAlertControllerStyleAlert];
         
-        [confirmAlert addAction:[UIAlertAction actionWithTitle:@"İptal" style:UIAlertActionStyleCancel handler:nil]];
-        [confirmAlert addAction:[UIAlertAction actionWithTitle:@"Evet, Hepsini Sil" style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+        [confirmAlert addAction:[UIAlertAction actionWithTitle:L(@"cancel") style:UIAlertActionStyleCancel handler:nil]];
+        [confirmAlert addAction:[UIAlertAction actionWithTitle:L(@"yes_delete_all") style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
             NSError *error = nil;
             BOOL success = [[LocalPhotoManager sharedManager] deleteGalleryForUsername:usernameToDelete error:&error];
             if (success) {
@@ -124,8 +125,8 @@
                 [self.filteredUsernames removeObjectAtIndex:indexPath.row];
                 [tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationFade];
             } else {
-                UIAlertController *errAlert = [UIAlertController alertControllerWithTitle:@"Hata" message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
-                [errAlert addAction:[UIAlertAction actionWithTitle:@"Tamam" style:UIAlertActionStyleDefault handler:nil]];
+                UIAlertController *errAlert = [UIAlertController alertControllerWithTitle:L(@"error") message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
+                [errAlert addAction:[UIAlertAction actionWithTitle:L(@"ok") style:UIAlertActionStyleDefault handler:nil]];
                 [self presentViewController:errAlert animated:YES completion:nil];
             }
         }]];

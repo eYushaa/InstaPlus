@@ -5,6 +5,7 @@
 #import "FloatingVoiceButtonManager.h"
 #import "DMMediaOverlayManager.h"
 #import "InstantsManager.h"
+#import "InstaLocalization.h"
 
 %hook UIWindow
 
@@ -481,8 +482,242 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
 %end
 
 // ============================================================================
-// SCInsta ENTEGRASYONU: GİZLİLİK VE GİZLİ MOD (STEALTH HOOKS)
+// InstaPlus: GİZLİLİK VE GİZLİ MOD (STEALTH HOOKS)
 // ============================================================================
+
+static void showActionConfirmationAlert(NSString *actionTitle, void (^onConfirm)(void)) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+        UIViewController *root = keyWindow.rootViewController;
+        while (root.presentedViewController) {
+            root = root.presentedViewController;
+        }
+        
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"confirmation_required")
+                                                                       message:[NSString stringWithFormat:L(@"confirm_message_format"), actionTitle]
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        
+        [alert addAction:[UIAlertAction actionWithTitle:L(@"yes") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+            if (onConfirm) onConfirm();
+        }]];
+        
+        [alert addAction:[UIAlertAction actionWithTitle:L(@"cancel") style:UIAlertActionStyleCancel handler:nil]];
+        
+        if (root) {
+            [root presentViewController:alert animated:YES completion:nil];
+        }
+    });
+}
+
+#define CONFIRM_BLOCK_START(FLAG, PREF_KEY, TITLE_KEY) \
+    if (FLAG) { \
+        FLAG = NO; \
+    } else if ([[NSUserDefaults standardUserDefaults] boolForKey:PREF_KEY]) { \
+        __weak id weakSelf = self; \
+        id savedArg1 = arg1; \
+        SEL currentSel = _cmd; \
+        showActionConfirmationAlert(L(TITLE_KEY), ^{ \
+            FLAG = YES; \
+            _Pragma("clang diagnostic push") \
+            _Pragma("clang diagnostic ignored \"-Warc-performSelector-leaks\"") \
+            [weakSelf performSelector:currentSel withObject:savedArg1]; \
+            _Pragma("clang diagnostic pop") \
+        }); \
+        return; \
+    }
+
+#define CONFIRM_BLOCK_START_0ARG(FLAG, PREF_KEY, TITLE_KEY) \
+    if (FLAG) { \
+        FLAG = NO; \
+    } else if ([[NSUserDefaults standardUserDefaults] boolForKey:PREF_KEY]) { \
+        __weak id weakSelf = self; \
+        SEL currentSel = _cmd; \
+        showActionConfirmationAlert(L(TITLE_KEY), ^{ \
+            FLAG = YES; \
+            _Pragma("clang diagnostic push") \
+            _Pragma("clang diagnostic ignored \"-Warc-performSelector-leaks\"") \
+            [weakSelf performSelector:currentSel]; \
+            _Pragma("clang diagnostic pop") \
+        }); \
+        return; \
+    }
+
+static BOOL _likeConfirmBypassed = NO;
+static BOOL _doubleTapConfirmBypassed = NO;
+static BOOL _followConfirmBypassed = NO;
+static BOOL _audioCallConfirmBypassed = NO;
+static BOOL _videoCallConfirmBypassed = NO;
+
+%hook IGUFIButtonBarView
+- (void)_onLikeButtonPressed:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_onLikeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_likeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_likeButtonPressed:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_didTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)onLikeButtonPressed:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)onLikeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)likeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)likeButtonPressed:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)didTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+%end
+
+%hook IGFeedItemUFIHandler
+- (void)ufiButtonBarDidTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)feedItemUFIButtonBarDidTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+%end
+
+%hook IGSundialUFIButtonBar
+- (void)_onLikeButtonPressed:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_onLikeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)onLikeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)likeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_didTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)didTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+%end
+
+%hook IGSundialUFIControlsView
+- (void)_onLikeButtonPressed:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_onLikeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)onLikeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)likeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_didTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)didTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+%end
+
+%hook IGSundialViewerUFIOverlayView
+- (void)_onLikeButtonPressed:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_onLikeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)onLikeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)likeButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)_didTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+- (void)didTapLikeButton:(id)arg1 { CONFIRM_BLOCK_START(_likeConfirmBypassed, @"like_confirm", @"action_like_post") %orig;
+}
+%end
+
+%hook IGFeedPhotoView
+- (void)_onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+%end
+
+%hook IGFeedItemVideoView
+- (void)_onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+%end
+
+%hook IGFeedMediaView
+- (void)_onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+%end
+
+%hook IGSundialVideoPlaybackView
+- (void)_onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)_didDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)didDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+%end
+
+%hook IGSundialViewerVideoDoubleTapHandler
+- (void)_onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)_didDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)didDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+%end
+
+%hook IGSundialViewerDoubleTapToLikeController
+- (void)_onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)onDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)_didDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+- (void)didDoubleTap:(id)arg1 { CONFIRM_BLOCK_START(_doubleTapConfirmBypassed, @"like_confirm", @"action_double_tap_like") %orig;
+}
+%end
+
+%hook IGFollowController
+- (void)_didPressFollowButton { CONFIRM_BLOCK_START_0ARG(_followConfirmBypassed, @"follow_confirm", @"action_follow_user") %orig;
+}
+%end
+
+%hook IGDirectThreadCallButtonsCoordinator
+- (void)_didTapAudioButton:(id)arg1 { CONFIRM_BLOCK_START(_audioCallConfirmBypassed, @"call_confirm", @"action_voice_call") %orig;
+}
+- (void)_didTapVideoButton:(id)arg1 { CONFIRM_BLOCK_START(_videoCallConfirmBypassed, @"call_confirm", @"action_video_call") %orig;
+}
+- (void)_audioButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_audioCallConfirmBypassed, @"call_confirm", @"action_voice_call") %orig;
+}
+- (void)_videoButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_videoCallConfirmBypassed, @"call_confirm", @"action_video_call") %orig;
+}
+%end
+
+%hook IGDirectThreadHeaderViewController
+- (void)_didTapAudioButton:(id)arg1 { CONFIRM_BLOCK_START(_audioCallConfirmBypassed, @"call_confirm", @"action_voice_call") %orig;
+}
+- (void)_didTapVideoButton:(id)arg1 { CONFIRM_BLOCK_START(_videoCallConfirmBypassed, @"call_confirm", @"action_video_call") %orig;
+}
+- (void)_audioCallButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_audioCallConfirmBypassed, @"call_confirm", @"action_voice_call") %orig;
+}
+- (void)_videoCallButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_videoCallConfirmBypassed, @"call_confirm", @"action_video_call") %orig;
+}
+- (void)headerViewDidTapAudioCallButton:(id)arg1 { CONFIRM_BLOCK_START(_audioCallConfirmBypassed, @"call_confirm", @"action_voice_call") %orig;
+}
+- (void)headerViewDidTapVideoCallButton:(id)arg1 { CONFIRM_BLOCK_START(_videoCallConfirmBypassed, @"call_confirm", @"action_video_call") %orig;
+}
+%end
+
+%hook IGDirectThreadViewController
+- (void)_didTapAudioCall { CONFIRM_BLOCK_START_0ARG(_audioCallConfirmBypassed, @"call_confirm", @"action_voice_call") %orig;
+}
+- (void)_didTapVideoCall { CONFIRM_BLOCK_START_0ARG(_videoCallConfirmBypassed, @"call_confirm", @"action_video_call") %orig;
+}
+- (void)_audioCallButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_audioCallConfirmBypassed, @"call_confirm", @"action_voice_call") %orig;
+}
+- (void)_videoCallButtonTapped:(id)arg1 { CONFIRM_BLOCK_START(_videoCallConfirmBypassed, @"call_confirm", @"action_video_call") %orig;
+}
+%end
 
 %hook IGStorySeenStateUploader
 - (id)initWithUserSessionPK:(id)arg1 networker:(id)arg2 {
@@ -521,13 +756,13 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"keep_deleted_message"]) {
         return nil;
     }
-    return %orig(arg1);
+    return %orig;
 }
 + (id)removeMessageWithMessageId:(id)arg1 {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"keep_deleted_message"]) {
         return nil;
     }
-    return %orig(arg1);
+    return %orig;
 }
 %end
 
@@ -536,7 +771,7 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"keep_deleted_message"]) {
         return nil;
     }
-    return %orig(arg1);
+    return %orig;
 }
 %end
 
@@ -545,13 +780,13 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"keep_deleted_message"]) {
         return self;
     }
-    return %orig(arg1);
+    return %orig;
 }
 - (id)removeMessageWithServerId:(id)arg1 {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"keep_deleted_message"]) {
         return self;
     }
-    return %orig(arg1);
+    return %orig;
 }
 %end
 
@@ -560,13 +795,13 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"keep_deleted_message"]) {
         return;
     }
-    %orig(arg1);
+    %orig;
 }
 - (void)removeMessageWithId:(id)arg1 {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"keep_deleted_message"]) {
         return;
     }
-    %orig(arg1);
+    %orig;
 }
 %end
 
@@ -625,7 +860,7 @@ static void updateLastPlayingMedia(id media, NSURL *url) {
 %end
 
 // ============================================================================
-// SCInsta ENTEGRASYONU: REKLAM VE SPONSORLU İÇERİK ENGELLEME
+// InstaPlus: REKLAM VE SPONSORLU İÇERİK ENGELLEME
 // ============================================================================
 
 static NSArray *removeSponsoredFeedItems(NSArray *objs) {
@@ -697,86 +932,9 @@ static NSArray *removeSponsoredFeedItems(NSArray *objs) {
 }
 %end
 
-// ============================================================================
-// SCInsta ENTEGRASYONU: ONAY VE ETKİLEŞİM GÜVENLİĞİ (CONFIRMATION HOOKS)
-// ============================================================================
-
-static void showActionConfirmationAlert(NSString *actionTitle, void (^onConfirm)(void)) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-        UIViewController *root = keyWindow.rootViewController;
-        while (root.presentedViewController) root = root.presentedViewController;
-        
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Onay Gerekiyor"
-                                                                       message:[NSString stringWithFormat:@"'%@' işlemini gerçekleştirmek istediğinize emin misiniz?", actionTitle]
-                                                                preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"Evet" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            if (onConfirm) onConfirm();
-        }]];
-        [alert addAction:[UIAlertAction actionWithTitle:@"İptal" style:UIAlertActionStyleCancel handler:nil]];
-        if (root) [root presentViewController:alert animated:YES completion:nil];
-    });
-}
-
-%hook IGUFIButtonBarView
-- (void)_onLikeButtonPressed:(id)arg1 {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"like_confirm"]) {
-        showActionConfirmationAlert(@"Gönderi Beğenme", ^{
-            %orig;
-        });
-    } else {
-        %orig;
-    }
-}
-%end
-
-%hook IGFeedPhotoView
-- (void)_onDoubleTap:(id)arg1 {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"like_confirm"]) {
-        showActionConfirmationAlert(@"Çift Tıkla Beğenme", ^{
-            %orig;
-        });
-    } else {
-        %orig;
-    }
-}
-%end
-
-%hook IGFollowController
-- (void)_didPressFollowButton {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"follow_confirm"]) {
-        showActionConfirmationAlert(@"Kullanıcıyı Takip Etme", ^{
-            %orig;
-        });
-    } else {
-        %orig;
-    }
-}
-%end
-
-%hook IGDirectThreadCallButtonsCoordinator
-- (void)_didTapAudioButton:(id)arg1 {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"call_confirm"]) {
-        showActionConfirmationAlert(@"Sesli Arama Başlatma", ^{
-            %orig;
-        });
-    } else {
-        %orig;
-    }
-}
-- (void)_didTapVideoButton:(id)arg1 {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"call_confirm"]) {
-        showActionConfirmationAlert(@"Görüntülü Arama Başlatma", ^{
-            %orig;
-        });
-    } else {
-        %orig;
-    }
-}
-%end
 
 // ============================================================================
-// SCInsta ENTEGRASYONU: FAKE CAMERA (ŞİPŞAK) HOOKS
+// InstaPlus: FAKE CAMERA (ŞİPŞAK) HOOKS
 // ============================================================================
 
 static void clearInstantImageAfterDelay(void) {
@@ -924,5 +1082,7 @@ static void clearInstantImageAfterDelay(void) {
 }
 
 %end
+
+
 
 

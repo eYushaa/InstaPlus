@@ -1,4 +1,5 @@
 #import "RVCSettingsViewController.h"
+#import "InstaLocalization.h"
 
 @interface RVCSettingsViewController () <UIPickerViewDelegate, UIPickerViewDataSource, UITextFieldDelegate>
 @property (nonatomic, strong) UITextField *urlField;
@@ -83,14 +84,14 @@
     _containerView.layer.shadowRadius = 15;
     
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 15, 280, 30)];
-    titleLabel.text = @"RVC Cloud Ayarları";
+    titleLabel.text = L(@"rvc_cloud_settings");
     titleLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightBold];
     titleLabel.textColor = [UIColor whiteColor];
     titleLabel.textAlignment = NSTextAlignmentCenter;
     [_containerView addSubview:titleLabel];
     
     UILabel *urlLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 55, 280, 20)];
-    urlLabel.text = @"Ngrok veya Sunucu URL:";
+    urlLabel.text = L(@"ngrok_url_label");
     urlLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
     urlLabel.textColor = [UIColor whiteColor];
     [_containerView addSubview:urlLabel];
@@ -112,7 +113,7 @@
     fetchBtn.frame = CGRectMake(20, 118, 280, 32);
     fetchBtn.backgroundColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.6 alpha:0.3];
     fetchBtn.layer.cornerRadius = 8;
-    [fetchBtn setTitle:@"Bağlan & Verileri Çek" forState:UIControlStateNormal];
+    [fetchBtn setTitle:L(@"connect_fetch") forState:UIControlStateNormal];
     fetchBtn.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightBold];
     [fetchBtn addTarget:self action:@selector(fetchData) forControlEvents:UIControlEventTouchUpInside];
     [_containerView addSubview:fetchBtn];
@@ -130,7 +131,7 @@
     self.bgPicker.dataSource = self;
     
     UILabel *mLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 160, 280, 18)];
-    mLabel.text = @"Kullanılacak Model:";
+    mLabel.text = L(@"model_to_use");
     mLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
     mLabel.textColor = [UIColor whiteColor];
     [_containerView addSubview:mLabel];
@@ -149,7 +150,7 @@
     
     // Pitch (Ses Tonu) Switch & Slider
     UILabel *pSwitchLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 222, 200, 24)];
-    pSwitchLabel.text = @"Özel Pitch (Ses Tonu):";
+    pSwitchLabel.text = L(@"custom_pitch");
     pSwitchLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
     pSwitchLabel.textColor = [UIColor whiteColor];
     [_containerView addSubview:pSwitchLabel];
@@ -161,7 +162,7 @@
     
     float savedPitch = [[NSUserDefaults standardUserDefaults] integerForKey:@"C2M_RVC_PITCH"];
     self.pitchLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 252, 280, 18)];
-    self.pitchLabel.text = [NSString stringWithFormat:@"Pitch (Ses Tonu): %+.0f yarım ton", savedPitch];
+    self.pitchLabel.text = [NSString stringWithFormat:L(@"pitch_format"), savedPitch];
     self.pitchLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
     self.pitchLabel.textColor = [UIColor colorWithWhite:0.8 alpha:1.0];
     [_containerView addSubview:self.pitchLabel];
@@ -179,7 +180,7 @@
     if (savedIndex == 0 && ![[NSUserDefaults standardUserDefaults] objectForKey:@"C2M_RVC_INDEX"]) savedIndex = 0.4;
     
     self.indexLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 305, 280, 18)];
-    self.indexLabel.text = [NSString stringWithFormat:@"Index Oranı: %.2f", savedIndex];
+    self.indexLabel.text = [NSString stringWithFormat:L(@"index_ratio_format"), savedIndex];
     self.indexLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
     self.indexLabel.textColor = [UIColor colorWithWhite:0.8 alpha:1.0];
     self.indexLabel.hidden = YES;
@@ -196,7 +197,7 @@
 
     // Arka Plan Sesi & Volume
     self.bgLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 355, 280, 18)];
-    self.bgLabel.text = @"Arka Plan Sesi (Gürültü/Yağmur):";
+    self.bgLabel.text = L(@"background_sound");
     self.bgLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
     self.self.bgLabel.textColor = [UIColor whiteColor];
     [_containerView addSubview:self.bgLabel];
@@ -217,7 +218,7 @@
     if (savedBgVol == 0 && ![[NSUserDefaults standardUserDefaults] objectForKey:@"C2M_RVC_BG_VOL"]) savedBgVol = -15.0;
     
     self.bgVolumeLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 412, 280, 18)];
-    self.bgVolumeLabel.text = [NSString stringWithFormat:@"Arka Plan Ses Seviyesi (%.0f dB)", savedBgVol];
+    self.bgVolumeLabel.text = [NSString stringWithFormat:L(@"bg_volume_format"), savedBgVol];
     self.bgVolumeLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
     self.bgVolumeLabel.textColor = [UIColor colorWithWhite:0.8 alpha:1.0];
     [_containerView addSubview:self.bgVolumeLabel];
@@ -235,7 +236,7 @@
     if (savedNoise == 0 && ![[NSUserDefaults standardUserDefaults] objectForKey:@"C2M_RVC_NOISE"]) savedNoise = 0.75;
     
     self.noiseLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 465, 280, 18)];
-    self.noiseLabel.text = [NSString stringWithFormat:@"Gürültü Engelleme (%.0f%%)", savedNoise * 100];
+    self.noiseLabel.text = [NSString stringWithFormat:L(@"noise_reduction_format"), savedNoise * 100];
     self.noiseLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
     self.noiseLabel.textColor = [UIColor whiteColor];
     [_containerView addSubview:self.noiseLabel];
@@ -253,7 +254,7 @@
     self.saveBtn.frame = CGRectMake(20, 545, 280, 42);
     self.saveBtn.backgroundColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.6 alpha:0.8];
     self.saveBtn.layer.cornerRadius = 14;
-    [self.saveBtn setTitle:@"Kaydet ve Kapat" forState:UIControlStateNormal];
+    [self.saveBtn setTitle:L(@"save_and_close") forState:UIControlStateNormal];
     self.saveBtn.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
     [self.saveBtn addTarget:self action:@selector(saveAndClose) forControlEvents:UIControlEventTouchUpInside];
     [_containerView addSubview:self.saveBtn];
@@ -323,13 +324,13 @@
 - (void)sliderValueChanged:(UISlider *)slider {
     if (slider == self.pitchSlider) {
         float val = roundf(slider.value);
-        self.pitchLabel.text = [NSString stringWithFormat:@"Pitch (Ses Tonu): %+.0f yarım ton", val];
+        self.pitchLabel.text = [NSString stringWithFormat:L(@"pitch_format"), val];
     } else if (slider == self.indexSlider) {
-        self.indexLabel.text = [NSString stringWithFormat:@"Index Oranı: %.2f", slider.value];
+        self.indexLabel.text = [NSString stringWithFormat:L(@"index_ratio_format"), slider.value];
     } else if (slider == self.bgVolumeSlider) {
-        self.bgVolumeLabel.text = [NSString stringWithFormat:@"Arka Plan Ses Seviyesi (%.0f dB)", slider.value];
+        self.bgVolumeLabel.text = [NSString stringWithFormat:L(@"bg_volume_format"), slider.value];
     } else if (slider == self.noiseSlider) {
-        self.noiseLabel.text = [NSString stringWithFormat:@"Gürültü Engelleme (%.0f%%)", slider.value * 100];
+        self.noiseLabel.text = [NSString stringWithFormat:L(@"noise_reduction_format"), slider.value * 100];
     }
 }
 

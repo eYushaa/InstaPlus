@@ -1,6 +1,7 @@
 #import "ModMenuUI.h"
 #import "VoiceGalleryViewController.h"
 #import "RVCSettingsViewController.h"
+#import "InstaLocalization.h"
 #import <objc/runtime.h>
 
 static UIView *modMenuView = nil;
@@ -14,23 +15,27 @@ void ShowFloatingModMenu(void) {
 
 + (void)initialize {
     if (self == [ModMenuUI class]) {
-        settingsArray = @[
-            @{@"key": @"adBlockerEnabled", @"title": @"Reklam Engelleyici", @"default": @YES},
-            @{@"key": @"screenshot_protection", @"title": @"Anti-Screenshot", @"default": @YES},
-            @{@"key": @"no_seen_receipt", @"title": @"Görüldü Gizle", @"default": @YES},
-            @{@"key": @"disable_typing_status", @"title": @"Yazıyor Gizle", @"default": @YES},
-            @{@"key": @"keep_deleted_message", @"title": @"Silinenleri Tut", @"default": @YES},
-            @{@"key": @"disable_view_once_limitations", @"title": @"Tek İzlemelikleri Sınırsız Yap", @"default": @YES},
-            @{@"key": @"auto_save_visual_messages", @"title": @"Tek İzlemelikleri Oto-Kaydet", @"default": @YES},
-            @{@"key": @"like_confirm", @"title": @"Beğeni Onayı", @"default": @NO},
-            @{@"key": @"follow_confirm", @"title": @"Takip Onayı", @"default": @NO},
-            @{@"key": @"call_confirm", @"title": @"Arama Onayı", @"default": @YES},
-            @{@"key": @"rvc_enabled", @"title": @"RVC Ses Değiştirici", @"default": @NO},
-            @{@"key": @"voice_gallery_button_enabled", @"title": @"Ses Galerisi Butonu", @"default": @NO},
-            @{@"key": @"media_download_button_enabled", @"title": @"Medya İndirme Butonu", @"default": @YES},
-            @{@"key": @"instantsButtonEnabled", @"title": @"Şipşak Butonu", @"default": @YES}
-        ];
+        [self rebuildSettingsArray];
     }
+}
+
++ (void)rebuildSettingsArray {
+    settingsArray = @[
+        @{@"key": @"adBlockerEnabled", @"titleKey": @"ad_blocker", @"default": @YES},
+        @{@"key": @"screenshot_protection", @"titleKey": @"anti_screenshot", @"default": @YES},
+        @{@"key": @"no_seen_receipt", @"titleKey": @"hide_seen", @"default": @YES},
+        @{@"key": @"disable_typing_status", @"titleKey": @"hide_typing", @"default": @YES},
+        @{@"key": @"keep_deleted_message", @"titleKey": @"keep_deleted", @"default": @YES},
+        @{@"key": @"disable_view_once_limitations", @"titleKey": @"unlimited_view_once", @"default": @YES},
+        @{@"key": @"auto_save_visual_messages", @"titleKey": @"auto_save_view_once", @"default": @YES},
+        @{@"key": @"like_confirm", @"titleKey": @"like_confirm", @"default": @NO},
+        @{@"key": @"follow_confirm", @"titleKey": @"follow_confirm", @"default": @NO},
+        @{@"key": @"call_confirm", @"titleKey": @"call_confirm", @"default": @YES},
+        @{@"key": @"rvc_enabled", @"titleKey": @"rvc_voice_changer", @"default": @NO},
+        @{@"key": @"voice_gallery_button_enabled", @"titleKey": @"voice_gallery_btn", @"default": @NO},
+        @{@"key": @"media_download_button_enabled", @"titleKey": @"media_download_btn", @"default": @YES},
+        @{@"key": @"instantsButtonEnabled", @"titleKey": @"instant_btn", @"default": @YES}
+    ];
 }
 
 + (void)switchChanged:(UISwitch *)sender {
@@ -131,6 +136,53 @@ void ShowFloatingModMenu(void) {
     });
 }
 
++ (void)changeLanguageTapped:(UIButton *)sender {
+    UIWindow *keyWindow = nil;
+    for (UIWindow *w in [[UIApplication sharedApplication] windows]) {
+        if (w.isKeyWindow) { keyWindow = w; break; }
+    }
+    if (!keyWindow) return;
+    
+    UIViewController *root = keyWindow.rootViewController;
+    while (root.presentedViewController) {
+        root = root.presentedViewController;
+    }
+    
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:L(@"language")
+                                                                   message:nil
+                                                            preferredStyle:UIAlertControllerStyleActionSheet];
+    
+    InstaLocalization *loc = [InstaLocalization shared];
+    for (NSString *code in [loc availableLanguageCodes]) {
+        NSString *displayName = [loc displayNameForLanguage:code];
+        BOOL isCurrent = [code isEqualToString:[loc currentLanguage]];
+        NSString *title = isCurrent ? [NSString stringWithFormat:@"✓ %@", displayName] : displayName;
+        
+        [sheet addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+            [loc setLanguage:code];
+            // Menüyü yeniden aç
+            [self destroyMenu];
+            [self showFloatingModMenu];
+        }]];
+    }
+    
+    [sheet addAction:[UIAlertAction actionWithTitle:L(@"cancel") style:UIAlertActionStyleCancel handler:nil]];
+    
+    if (sheet.popoverPresentationController) {
+        sheet.popoverPresentationController.sourceView = sender;
+        sheet.popoverPresentationController.sourceRect = sender.bounds;
+    }
+    
+    [root presentViewController:sheet animated:YES completion:nil];
+}
+
++ (void)destroyMenu {
+    if (modMenuView) {
+        [modMenuView removeFromSuperview];
+        modMenuView = nil;
+    }
+}
+
 + (void)showFloatingModMenu {
     UIWindow *keyWindow = nil;
     for (UIWindow *w in [[UIApplication sharedApplication] windows]) {
@@ -148,6 +200,9 @@ void ShowFloatingModMenu(void) {
         }
         return;
     }
+    
+    // Rebuild settings array to pick up latest language
+    [self rebuildSettingsArray];
     
     modMenuView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 520)];
     modMenuView.center = keyWindow.center;
@@ -169,14 +224,14 @@ void ShowFloatingModMenu(void) {
     modMenuView.layer.shadowRadius = 15;
     
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 20, 280, 30)];
-    titleLabel.text = @"InstaPlus VIP Mod";
+    titleLabel.text = L(@"mod_title");
     titleLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightBold];
     titleLabel.textColor = [UIColor whiteColor];
     titleLabel.textAlignment = NSTextAlignmentCenter;
     [modMenuView addSubview:titleLabel];
     
     UILabel *subLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 45, 280, 20)];
-    subLabel.text = @"GELİŞMİŞ GİZLİLİK VE MEDYA SİSTEMİ";
+    subLabel.text = L(@"mod_subtitle");
     subLabel.font = [UIFont systemFontOfSize:11 weight:UIFontWeightBold];
     subLabel.textColor = [UIColor colorWithRed:0.6 green:0.2 blue:0.8 alpha:1.0];
     subLabel.textAlignment = NSTextAlignmentCenter;
@@ -190,10 +245,37 @@ void ShowFloatingModMenu(void) {
     [modMenuView addSubview:scrollView];
     
     CGFloat currentY = 5;
+    
+    // Dil Seçici Satırı (ScrollView içinde şık görünüm)
+    InstaLocalization *loc = [InstaLocalization shared];
+    UILabel *langRowLabel = [[UILabel alloc] initWithFrame:CGRectMake(30, currentY, 150, 35)];
+    langRowLabel.text = [NSString stringWithFormat:@"🌐 %@", L(@"language")];
+    langRowLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+    langRowLabel.textColor = [UIColor whiteColor];
+    [scrollView addSubview:langRowLabel];
+    
+    UIButton *langBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    langBtn.frame = CGRectMake(180, currentY + 2.5, 110, 30);
+    langBtn.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.12];
+    langBtn.layer.cornerRadius = 10;
+    langBtn.layer.borderWidth = 1.0;
+    langBtn.layer.borderColor = [UIColor colorWithRed:0.6 green:0.2 blue:0.8 alpha:0.6].CGColor;
+    NSString *currentLangDisplay = [NSString stringWithFormat:@"%@ ▾", [loc displayNameForLanguage:[loc currentLanguage]]];
+    [langBtn setTitle:currentLangDisplay forState:UIControlStateNormal];
+    [langBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    langBtn.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightBold];
+    [langBtn addTarget:self action:@selector(changeLanguageTapped:) forControlEvents:UIControlEventTouchUpInside];
+    [scrollView addSubview:langBtn];
+    
+    currentY += 40;
+    UIView *langSep = [[UIView alloc] initWithFrame:CGRectMake(30, currentY - 3, 260, 1)];
+    langSep.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.08];
+    [scrollView addSubview:langSep];
+    
     for (int i = 0; i < settingsArray.count; i++) {
         NSDictionary *dict = settingsArray[i];
         UILabel *swLabel = [[UILabel alloc] initWithFrame:CGRectMake(30, currentY, 200, 35)];
-        swLabel.text = dict[@"title"];
+        swLabel.text = L(dict[@"titleKey"]);
         swLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
         swLabel.textColor = [UIColor whiteColor];
         [scrollView addSubview:swLabel];
@@ -229,7 +311,7 @@ void ShowFloatingModMenu(void) {
     galleryBtn.frame = CGRectMake(20, 450, 135, 45);
     galleryBtn.backgroundColor = [UIColor colorWithRed:0.2 green:0.6 blue:0.8 alpha:1.0];
     galleryBtn.layer.cornerRadius = 12;
-    [galleryBtn setTitle:@"Dahili Galeri" forState:UIControlStateNormal];
+    [galleryBtn setTitle:L(@"internal_gallery") forState:UIControlStateNormal];
     [galleryBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     galleryBtn.titleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
     [galleryBtn addTarget:self action:@selector(openInternalGallery) forControlEvents:UIControlEventTouchUpInside];
@@ -239,7 +321,7 @@ void ShowFloatingModMenu(void) {
     saveBtn.frame = CGRectMake(165, 450, 135, 45);
     saveBtn.backgroundColor = [UIColor colorWithRed:0.6 green:0.2 blue:0.8 alpha:1.0];
     saveBtn.layer.cornerRadius = 12;
-    [saveBtn setTitle:@"Kaydet" forState:UIControlStateNormal];
+    [saveBtn setTitle:L(@"save") forState:UIControlStateNormal];
     [saveBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     saveBtn.titleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
     [saveBtn addTarget:self action:@selector(closeMenu) forControlEvents:UIControlEventTouchUpInside];

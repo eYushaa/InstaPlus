@@ -1,4 +1,5 @@
 #import "InstantsManager.h"
+#import "InstaLocalization.h"
 
 @interface InstantsManager ()
 @property (nonatomic, strong) UIImage *selectedImage;
@@ -132,7 +133,7 @@
     if (image) {
         self.selectedImage = image;
         [self applyImageToInstantCameraPreview:image];
-        [self showToast:@"✓ Fotoğraf Kırpıldı ve Şipşak Ekranına Yerleştirildi!"];
+        [self showToast:L(@"instant_photo_placed")];
     }
     [picker dismissViewControllerAnimated:YES completion:nil];
 }
@@ -187,7 +188,7 @@
     if (sender) [sender removeFromSuperview];
     
     [self clearPendingInstantImage];
-    [self showToast:@"Canlı Kamera Görünümüne Dönüldü"];
+    [self showToast:L(@"returned_to_camera")];
 }
 
 - (UIImage *)pendingInstantImage {

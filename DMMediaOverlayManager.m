@@ -1,6 +1,7 @@
 #import "DMMediaOverlayManager.h"
 #import "MediaExtractor.h"
 #import "LocalPhotoManager.h"
+#import "InstaLocalization.h"
 
 @interface DMMediaOverlayManager ()
 @property (nonatomic, strong) UIButton *saveButton;
@@ -146,7 +147,7 @@
             NSURL *videoURL = ctx[@"url"];
             NSLog(@"[InstaPlus] Starting VIDEO download from URL: %@", videoURL.absoluteString);
 
-            if (showToast) [self showToast:@"Video İndiriliyor... Lütfen bekleyin."];
+            if (showToast) [self showToast:L(@"downloading_video")];
             
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                 NSError *bgError = nil;
@@ -155,10 +156,10 @@
                 dispatch_async(dispatch_get_main_queue(), ^{
                     if (success) {
                         NSLog(@"[InstaPlus] Video download SUCCESS");
-                        if (showToast) [self showToast:[NSString stringWithFormat:@"Video @%@ klasörüne kaydedildi!", username]];
+                        if (showToast) [self showToast:[NSString stringWithFormat:L(@"video_saved_format"), username]];
                     } else {
                         NSLog(@"[InstaPlus] Video download FAILED: %@", bgError);
-                        [self showAlertWithTitle:@"İndirme Hatası" message:[NSString stringWithFormat:@"Video kaydedilemedi.\nHata: %@\n\nLOG:\n%@", bgError.localizedDescription ?: @"Bilinmiyor", debugLog]];
+                        [self showAlertWithTitle:L(@"download_error") message:[NSString stringWithFormat:L(@"video_save_failed_format"), bgError.localizedDescription ?: L(@"unknown"), debugLog]];
                     }
                 });
             });
@@ -166,7 +167,7 @@
             return YES;
         } else {
             // Explicitly detected video, but URL extraction failed. DO NOT SAVE PHOTO SCREENSHOT!
-            [self showAlertWithTitle:@"Video URL Bulunamadı" message:[NSString stringWithFormat:@"Ekrandaki medya Video olarak tespit edildi ancak indirme adresi alınamadı.\n\nLOG:\n%@", debugLog]];
+            [self showAlertWithTitle:L(@"video_url_not_found") message:[NSString stringWithFormat:L(@"video_url_not_found_msg_format"), debugLog]];
             return NO;
         }
     }
@@ -198,15 +199,15 @@
         BOOL success = [[LocalPhotoManager sharedManager] saveImage:capturedMedia forUsername:username error:&error];
         [MediaExtractor clearGlobalVideoCache];
         if (success) {
-            if (showToast) [self showToast:[NSString stringWithFormat:@"Fotoğraf @%@ klasörüne kaydedildi!", username]];
+            if (showToast) [self showToast:[NSString stringWithFormat:L(@"photo_saved_format"), username]];
             return YES;
         } else {
-            [self showAlertWithTitle:@"Kaydetme Hatası" message:[NSString stringWithFormat:@"Fotoğraf kaydedilemedi: %@", error.localizedDescription]];
+            [self showAlertWithTitle:L(@"save_error") message:[NSString stringWithFormat:L(@"photo_save_failed_format"), error.localizedDescription]];
         }
     }
     
     [MediaExtractor clearGlobalVideoCache];
-    [self showAlertWithTitle:@"Hata (Log)" message:debugLog];
+    [self showAlertWithTitle:L(@"error_log") message:debugLog];
     return NO;
 }
 
@@ -262,15 +263,15 @@
                         }
                         dispatch_async(dispatch_get_main_queue(), ^{
                             if (success) {
-                                [self showSuccessAlert:@"📸 Fotoğraf İndirildi"];
+                                [self showSuccessAlert:L(@"photo_downloaded")];
                             } else {
-                                [self showSuccessAlert:@"❌ İndirme Hatası"];
+                                [self showSuccessAlert:L(@"download_error_icon")];
                             }
                         });
                     });
                 } else if ([url isKindOfClass:[UIImage class]]) {
                     [[LocalPhotoManager sharedManager] saveImage:(UIImage *)url forUsername:username error:nil];
-                    [self showSuccessAlert:@"📸 Fotoğraf İndirildi"];
+                    [self showSuccessAlert:L(@"photo_downloaded")];
                 }
             } else if ([type isEqualToString:@"video"]) {
                 dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -278,9 +279,9 @@
                     BOOL success = [[LocalPhotoManager sharedManager] saveVideoFromURL:url forUsername:username error:&bgError];
                     dispatch_async(dispatch_get_main_queue(), ^{
                         if (success) {
-                            [self showSuccessAlert:@"🎥 Video İndirildi"];
+                            [self showSuccessAlert:L(@"video_downloaded")];
                         } else {
-                            [self showSuccessAlert:@"❌ İndirme Hatası"];
+                            [self showSuccessAlert:L(@"download_error_icon")];
                         }
                     });
                 });
@@ -288,7 +289,7 @@
         } else {
             [debugLog appendFormat:@"[LongPress] Failed to extract media.\n"];
             NSLog(@"%@", debugLog);
-            [self showSuccessAlert:@"❌ Medya Bulunamadı"];
+            [self showSuccessAlert:L(@"media_not_found")];
         }
     }
 }
@@ -342,7 +343,7 @@
         
         UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
         closeBtn.frame = CGRectMake(0, cardH - 46, cardW, 46);
-        [closeBtn setTitle:@"Tamam" forState:UIControlStateNormal];
+        [closeBtn setTitle:L(@"ok") forState:UIControlStateNormal];
         closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
         [closeBtn setTitleColor:[UIColor colorWithRed:0.2 green:0.6 blue:1.0 alpha:1.0] forState:UIControlStateNormal];
         closeBtn.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];

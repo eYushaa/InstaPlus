@@ -1,6 +1,7 @@
 #import "VoiceGalleryViewController.h"
 #import <MobileCoreServices/MobileCoreServices.h>
 #import <AVFoundation/AVFoundation.h>
+#import "InstaLocalization.h"
 
 @interface UIImage (System)
 + (UIImage *)systemImageNamed:(NSString *)name;
@@ -112,7 +113,7 @@ extern NSString *globalSelectedVoicePath;
     
     // Top Title
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 20, 280, 25)];
-    titleLabel.text = @"Ses Galerisi";
+    titleLabel.text = L(@"voice_gallery");
     titleLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightBold];
     titleLabel.textColor = [UIColor whiteColor];
     titleLabel.textAlignment = NSTextAlignmentCenter;
@@ -129,7 +130,7 @@ extern NSString *globalSelectedVoicePath;
     self.searchBar = [[UISearchBar alloc] initWithFrame:CGRectMake(10, 75, 300, 36)];
     self.searchBar.delegate = self;
     self.searchBar.searchBarStyle = UISearchBarStyleMinimal;
-    self.searchBar.placeholder = @"Seslerde ara...";
+    self.searchBar.placeholder = L(@"search_voices");
     self.searchBar.tintColor = [UIColor colorWithRed:0.6 green:0.2 blue:0.8 alpha:1.0];
     UITextField *searchTextField = [self.searchBar valueForKey:@"searchField"];
     if (searchTextField) {
@@ -162,7 +163,7 @@ extern NSString *globalSelectedVoicePath;
     closeBtn.layer.cornerRadius = 12;
     closeBtn.layer.borderWidth = 1.0;
     closeBtn.layer.borderColor = [UIColor colorWithRed:0.6 green:0.2 blue:0.8 alpha:1.0].CGColor;
-    [closeBtn setTitle:@"Kapat" forState:UIControlStateNormal];
+    [closeBtn setTitle:L(@"close") forState:UIControlStateNormal];
     [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     closeBtn.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightBold];
     [closeBtn addTarget:self action:@selector(closeTapped) forControlEvents:UIControlEventTouchUpInside];
@@ -174,7 +175,7 @@ extern NSString *globalSelectedVoicePath;
     newFolderBtn.layer.cornerRadius = 12;
     newFolderBtn.layer.borderWidth = 1.0;
     newFolderBtn.layer.borderColor = [UIColor yellowColor].CGColor;
-    [newFolderBtn setTitle:@"Yeni Klasör" forState:UIControlStateNormal];
+    [newFolderBtn setTitle:L(@"new_folder") forState:UIControlStateNormal];
     [newFolderBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     newFolderBtn.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightBold];
     [newFolderBtn addTarget:self action:@selector(newFolderTapped) forControlEvents:UIControlEventTouchUpInside];
@@ -186,7 +187,7 @@ extern NSString *globalSelectedVoicePath;
     addBtn.layer.cornerRadius = 12;
     addBtn.layer.borderWidth = 1.0;
     addBtn.layer.borderColor = [UIColor cyanColor].CGColor;
-    [addBtn setTitle:@"Yeni Ses" forState:UIControlStateNormal];
+    [addBtn setTitle:L(@"new_voice") forState:UIControlStateNormal];
     [addBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     addBtn.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightBold];
     [addBtn addTarget:self action:@selector(addTapped) forControlEvents:UIControlEventTouchUpInside];
@@ -201,12 +202,12 @@ extern NSString *globalSelectedVoicePath;
 }
 
 - (void)newFolderTapped {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Yeni Klasör" message:@"Klasör adını girin." preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"new_folder") message:L(@"enter_folder_name") preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
-        textField.placeholder = @"Klasör Adı";
+        textField.placeholder = L(@"folder_name");
     }];
-    [alert addAction:[UIAlertAction actionWithTitle:@"İptal" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Oluştur" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+    [alert addAction:[UIAlertAction actionWithTitle:L(@"cancel") style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:L(@"create") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
         NSString *name = alert.textFields.firstObject.text;
         if (name && name.length > 0) {
             NSString *folderPath = [self.currentDirectoryPath stringByAppendingPathComponent:name];
@@ -359,7 +360,7 @@ extern NSString *globalSelectedVoicePath;
     if (!urls || urls.count == 0) return;
     
     NSUInteger totalCount = urls.count;
-    UIAlertController *progressAlert = [UIAlertController alertControllerWithTitle:@"Sesler Aktarılıyor" message:[NSString stringWithFormat:@"0/%lu ses işleniyor...", (unsigned long)totalCount] preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *progressAlert = [UIAlertController alertControllerWithTitle:L(@"importing_voices") message:[NSString stringWithFormat:L(@"processing_voices_init_format"), (unsigned long)totalCount] preferredStyle:UIAlertControllerStyleAlert];
     [self presentViewController:progressAlert animated:YES completion:nil];
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -368,7 +369,7 @@ extern NSString *globalSelectedVoicePath;
             NSString *fileName = [selectedUrl lastPathComponent];
             
             dispatch_async(dispatch_get_main_queue(), ^{
-                progressAlert.message = [NSString stringWithFormat:@"%lu/%lu ses işleniyor:\n%@", (unsigned long)(i + 1), (unsigned long)totalCount, fileName];
+                progressAlert.message = [NSString stringWithFormat:L(@"processing_voices_format"), (unsigned long)(i + 1), (unsigned long)totalCount, fileName];
             });
             
             BOOL accessing = [selectedUrl startAccessingSecurityScopedResource];
@@ -450,7 +451,7 @@ extern NSString *globalSelectedVoicePath;
     NSURL *fileUrl = self.filteredItems[indexPath.row];
     NSString *rootFolder = [[InstaLocalStorage shared] getVoicesFolder];
     if (![self.currentDirectoryPath isEqualToString:rootFolder] && [fileUrl.path isEqualToString:[self.currentDirectoryPath stringByDeletingLastPathComponent]]) {
-        cell.textLabel.text = @"Geri Dön";
+        cell.textLabel.text = L(@"go_back");
         cell.imageView.image = [UIImage systemImageNamed:@"arrow.turn.up.left"];
         cell.imageView.tintColor = [UIColor orangeColor];
         cell.textLabel.textColor = [UIColor orangeColor];
@@ -474,7 +475,7 @@ extern NSString *globalSelectedVoicePath;
             NSString *dirPath = fileUrl.path.stringByDeletingLastPathComponent;
             NSString *folderDisplayName = nil;
             if ([dirPath isEqualToString:rootFolder]) {
-                folderDisplayName = @"Ana Klasör";
+                folderDisplayName = L(@"root_folder");
             } else {
                 folderDisplayName = dirPath.lastPathComponent;
             }
@@ -634,12 +635,12 @@ extern NSString *globalSelectedVoicePath;
             if (![self.currentDirectoryPath isEqualToString:rootFolder] && [fileUrl.path isEqualToString:[self.currentDirectoryPath stringByDeletingLastPathComponent]]) {
                 return;
             }
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Yeniden Adlandır" message:@"Yeni ismi girin:" preferredStyle:UIAlertControllerStyleAlert];
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"rename") message:L(@"enter_new_name") preferredStyle:UIAlertControllerStyleAlert];
             [alert addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
                 textField.text = [fileUrl.lastPathComponent stringByDeletingPathExtension];
             }];
-            [alert addAction:[UIAlertAction actionWithTitle:@"İptal" style:UIAlertActionStyleCancel handler:nil]];
-            [alert addAction:[UIAlertAction actionWithTitle:@"Kaydet" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+            [alert addAction:[UIAlertAction actionWithTitle:L(@"cancel") style:UIAlertActionStyleCancel handler:nil]];
+            [alert addAction:[UIAlertAction actionWithTitle:L(@"save") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
                 NSString *newName = alert.textFields.firstObject.text;
                 if (newName && newName.length > 0) {
                     NSString *ext = fileUrl.pathExtension;

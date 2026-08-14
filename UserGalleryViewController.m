@@ -3,6 +3,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import <AVKit/AVKit.h>
 #import <Photos/Photos.h>
+#import "InstaLocalization.h"
 
 @interface UserGalleryViewController () <UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout, UIGestureRecognizerDelegate>
 @property (nonatomic, strong) NSString *username;
@@ -51,13 +52,13 @@
         [self.view addSubview:fullImageView];
     }
     
-    UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:@"Kapat" style:UIBarButtonItemStyleDone target:self action:@selector(close)];
+    UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:L(@"close") style:UIBarButtonItemStyleDone target:self action:@selector(close)];
     self.navigationItem.rightBarButtonItem = closeBtn;
     
-    UIBarButtonItem *delBtn = [[UIBarButtonItem alloc] initWithTitle:@"Sil" style:UIBarButtonItemStylePlain target:self action:@selector(deleteItem)];
+    UIBarButtonItem *delBtn = [[UIBarButtonItem alloc] initWithTitle:L(@"delete") style:UIBarButtonItemStylePlain target:self action:@selector(deleteItem)];
     delBtn.tintColor = [UIColor redColor];
     UIBarButtonItem *flex = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
-    UIBarButtonItem *exportBtn = [[UIBarButtonItem alloc] initWithTitle:@"Film Rulosuna Aktar" style:UIBarButtonItemStylePlain target:self action:@selector(exportItem)];
+    UIBarButtonItem *exportBtn = [[UIBarButtonItem alloc] initWithTitle:L(@"export_to_camera_roll") style:UIBarButtonItemStylePlain target:self action:@selector(exportItem)];
     
     self.toolbarItems = @[delBtn, flex, exportBtn];
 }
@@ -67,9 +68,9 @@
 }
 
 - (void)deleteItem {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Sil" message:@"Bu medyayı silmek istediğinize emin misiniz?" preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"İptal" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Sil" style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"delete") message:L(@"delete_media_confirm") preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:L(@"cancel") style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:L(@"delete") style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
         if (self.onDelete) {
             self.onDelete(self.mediaPath);
         }
@@ -91,12 +92,12 @@
             } completionHandler:^(BOOL success, NSError * _Nullable error) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     if (success) {
-                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Başarılı" message:@"Medya film rulosuna kaydedildi." preferredStyle:UIAlertControllerStyleAlert];
-                        [alert addAction:[UIAlertAction actionWithTitle:@"Tamam" style:UIAlertActionStyleDefault handler:nil]];
+                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"success") message:L(@"media_saved_to_roll") preferredStyle:UIAlertControllerStyleAlert];
+                        [alert addAction:[UIAlertAction actionWithTitle:L(@"ok") style:UIAlertActionStyleDefault handler:nil]];
                         [self presentViewController:alert animated:YES completion:nil];
                     } else {
-                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Hata" message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
-                        [alert addAction:[UIAlertAction actionWithTitle:@"Tamam" style:UIAlertActionStyleDefault handler:nil]];
+                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"error") message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
+                        [alert addAction:[UIAlertAction actionWithTitle:L(@"ok") style:UIAlertActionStyleDefault handler:nil]];
                         [self presentViewController:alert animated:YES completion:nil];
                     }
                 });
@@ -121,8 +122,8 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    if ([self.username isEqualToString:@"Tümü"]) {
-        self.title = @"Tüm Medyalar";
+    if ([self.username isEqualToString:L(@"all")]) {
+        self.title = L(@"all_media");
         self.mediaPaths = [[LocalPhotoManager sharedManager] getAllMedia];
     } else {
         self.title = [NSString stringWithFormat:@"@%@", self.username];
@@ -137,9 +138,9 @@
 }
 
 - (void)setupNavigationBar {
-    self.selectItem = [[UIBarButtonItem alloc] initWithTitle:@"Seç" style:UIBarButtonItemStylePlain target:self action:@selector(toggleSelectionMode)];
-    self.cancelItem = [[UIBarButtonItem alloc] initWithTitle:@"İptal" style:UIBarButtonItemStyleDone target:self action:@selector(toggleSelectionMode)];
-    self.selectAllItem = [[UIBarButtonItem alloc] initWithTitle:@"Tümünü Seç" style:UIBarButtonItemStylePlain target:self action:@selector(selectAllItems)];
+    self.selectItem = [[UIBarButtonItem alloc] initWithTitle:L(@"select") style:UIBarButtonItemStylePlain target:self action:@selector(toggleSelectionMode)];
+    self.cancelItem = [[UIBarButtonItem alloc] initWithTitle:L(@"cancel") style:UIBarButtonItemStyleDone target:self action:@selector(toggleSelectionMode)];
+    self.selectAllItem = [[UIBarButtonItem alloc] initWithTitle:L(@"select_all") style:UIBarButtonItemStylePlain target:self action:@selector(selectAllItems)];
     self.navigationItem.rightBarButtonItem = self.selectItem;
 }
 
@@ -175,12 +176,12 @@
     self.bottomToolbar.barStyle = UIBarStyleBlack;
     self.bottomToolbar.hidden = YES;
     
-    self.deleteItem = [[UIBarButtonItem alloc] initWithTitle:@"Sil" style:UIBarButtonItemStylePlain target:self action:@selector(deleteSelectedItems)];
+    self.deleteItem = [[UIBarButtonItem alloc] initWithTitle:L(@"delete") style:UIBarButtonItemStylePlain target:self action:@selector(deleteSelectedItems)];
     self.deleteItem.tintColor = [UIColor redColor];
     
     UIBarButtonItem *flexSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
     
-    self.exportItem = [[UIBarButtonItem alloc] initWithTitle:@"Film Rulosuna Aktar" style:UIBarButtonItemStylePlain target:self action:@selector(exportSelectedItems)];
+    self.exportItem = [[UIBarButtonItem alloc] initWithTitle:L(@"export_to_camera_roll") style:UIBarButtonItemStylePlain target:self action:@selector(exportSelectedItems)];
     
     self.bottomToolbar.items = @[self.deleteItem, flexSpace, self.exportItem];
     [self.view addSubview:self.bottomToolbar];
@@ -213,26 +214,26 @@
     self.deleteItem.enabled = hasSelection;
     self.exportItem.enabled = hasSelection;
     if (self.isSelectionMode) {
-        self.title = hasSelection ? [NSString stringWithFormat:@"%lu Seçili", (unsigned long)self.selectedIndexPaths.count] : @"Öğe Seçin";
+        self.title = hasSelection ? [NSString stringWithFormat:L(@"selected_count_format"), (unsigned long)self.selectedIndexPaths.count] : L(@"select_items");
         if (self.selectedIndexPaths.count == self.mediaPaths.count && self.mediaPaths.count > 0) {
-            self.selectAllItem.title = @"Tümünü Bırak";
+            self.selectAllItem.title = L(@"deselect_all");
         } else {
-            self.selectAllItem.title = @"Tümünü Seç";
+            self.selectAllItem.title = L(@"select_all");
         }
     } else {
-        self.title = [self.username isEqualToString:@"Tümü"] ? @"Tüm Medyalar" : [NSString stringWithFormat:@"@%@", self.username];
+        self.title = [self.username isEqualToString:L(@"all")] ? L(@"all_media") : [NSString stringWithFormat:@"@%@", self.username];
     }
 }
 
 - (void)selectAllItems {
     if (self.selectedIndexPaths.count == self.mediaPaths.count) {
         [self.selectedIndexPaths removeAllObjects];
-        self.selectAllItem.title = @"Tümünü Seç";
+        self.selectAllItem.title = L(@"select_all");
     } else {
         for (NSInteger i = 0; i < self.mediaPaths.count; i++) {
             [self.selectedIndexPaths addObject:[NSIndexPath indexPathForItem:i inSection:0]];
         }
-        self.selectAllItem.title = @"Tümünü Bırak";
+        self.selectAllItem.title = L(@"deselect_all");
     }
     [self updateToolbarButtons];
     [self.collectionView reloadData];
@@ -397,7 +398,7 @@
     singleVC.mediaPath = path;
     singleVC.onDelete = ^(NSString *deletedPath) {
         [[LocalPhotoManager sharedManager] deleteMediaAtPath:deletedPath error:nil];
-        if ([self.username isEqualToString:@"Tümü"]) {
+        if ([self.username isEqualToString:L(@"all")]) {
             self.mediaPaths = [[LocalPhotoManager sharedManager] getAllMedia];
         } else {
             self.mediaPaths = [[LocalPhotoManager sharedManager] getMediaForUsername:self.username];
@@ -416,9 +417,9 @@
 }
 
 - (void)deleteSelectedItems {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Sil" message:[NSString stringWithFormat:@"%lu ögeyi silmek istediğinize emin misiniz?", (unsigned long)self.selectedIndexPaths.count] preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"İptal" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Sil" style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"delete") message:[NSString stringWithFormat:L(@"delete_items_confirm_format"), (unsigned long)self.selectedIndexPaths.count] preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:L(@"cancel") style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:L(@"delete") style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
         NSMutableArray *pathsToDelete = [NSMutableArray array];
         for (NSIndexPath *ip in self.selectedIndexPaths) {
             [pathsToDelete addObject:self.mediaPaths[ip.item]];
@@ -429,7 +430,7 @@
         }
         
         [self toggleSelectionMode];
-        if ([self.username isEqualToString:@"Tümü"]) {
+        if ([self.username isEqualToString:L(@"all")]) {
             self.mediaPaths = [[LocalPhotoManager sharedManager] getAllMedia];
         } else {
             self.mediaPaths = [[LocalPhotoManager sharedManager] getMediaForUsername:self.username];
@@ -459,14 +460,14 @@
             } completionHandler:^(BOOL success, NSError * _Nullable error) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     if (success) {
-                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Başarılı" message:@"Seçili ögeler film rulosuna kaydedildi." preferredStyle:UIAlertControllerStyleAlert];
-                        [alert addAction:[UIAlertAction actionWithTitle:@"Tamam" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"success") message:L(@"items_saved_to_roll") preferredStyle:UIAlertControllerStyleAlert];
+                        [alert addAction:[UIAlertAction actionWithTitle:L(@"ok") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
                             [self toggleSelectionMode];
                         }]];
                         [self presentViewController:alert animated:YES completion:nil];
                     } else {
-                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Hata" message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
-                        [alert addAction:[UIAlertAction actionWithTitle:@"Tamam" style:UIAlertActionStyleDefault handler:nil]];
+                        UIAlertController *alert = [UIAlertController alertControllerWithTitle:L(@"error") message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
+                        [alert addAction:[UIAlertAction actionWithTitle:L(@"ok") style:UIAlertActionStyleDefault handler:nil]];
                         [self presentViewController:alert animated:YES completion:nil];
                     }
                 });

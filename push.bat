@@ -1,3 +1,3 @@
-git add -u
-git commit -m "latest bug fixes"
-git push --set-upstream origin main
+git add .
+git commit -m "v1.0.2: bug fixes & english localisation"
+git push origin main

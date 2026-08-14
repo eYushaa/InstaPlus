@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/icon.jpeg" alt="InstaPlus Icon" width="120" style="border-radius:25px"/>
+<img src="assets/mod_menu_icon.png" alt="InstaPlus Icon" width="120" style="border-radius:25px"/>
 
 # ✨ InstaPlus
 

@@ -2,7 +2,7 @@
 
 <img src="assets/mod_menu_icon.png" alt="InstaPlus Icon" width="120" style="border-radius:25px"/>
 
-# ✨ InstaPlus
+# InstaPlus
 
 **The Ultimate Instagram Power-Up Tweak for iOS**
 
@@ -24,6 +24,9 @@
 <summary>🇬🇧 <b>English</b></summary>
 
 ## 🌟 Key Features
+
+> [!TIP]
+> **How to open the Mod Menu:** After launching Instagram, look for the floating **✦** (Sparkle) button on your screen. Tap it anytime to open the InstaPlus Mod Menu!
 
 <p align="center">
   <img src="assets/mod_menu_en.jpeg" alt="InstaPlus Mod Menu" width="300" style="border-radius:15px"/>
@@ -58,9 +61,8 @@
 * **Full English Localization:** 
   * The Mod Menu is now fully localized.
   * Added an elegant language picker inside the Settings row to seamlessly toggle between English and Turkish.
-* **Confirmation Dialog Fixes:**
-  * Fixed an issue where the Double Tap and direct Like button actions bypassed the confirmation dialog on Feed and Reels.
-  * Added missing confirmation layers for audio and video calls in Direct Messages.
+* **Bug Fixes:**
+  * Fixed several bugs related to double-tap like confirmation and follow confirmation.
 
 ### v1.0.1
 * **Massive Gallery UI Overhaul:**
@@ -87,9 +89,21 @@
 
 ## 🔮 Roadmap & Upcoming Features
 
-- [x] **Dedicated RVC-Server:** A custom lightweight [RVC-Server](https://github.com/eYushaa/RVC-FK) backend will be introduced.
-- [x] **Full Localization:** English UI translation for the embedded Mod Menu.
+### v1.0.1
+- [x] **Dedicated RVC-Server:** A custom lightweight [RVC-Server](https://github.com/eYushaa/RVC-FK) backend.
 - [x] **Stability Boost:** Performance tweaks for Ghost Mode and Media Downloader.
+
+### v1.0.2
+- [x] **Full Localization:** English UI translation for the embedded Mod Menu.
+- [x] **Bug Fixes:** Feed double-tap liking and follow features were activated, follow confirmation dialog was added.
+
+### v1.0.3 (Upcoming)
+- [ ] **Bug Fixes & Performance:** Continuous improvements for a seamless user experience.
+- [ ] **Language Support Expansion:** Adding support for more languages beyond Turkish and English.
+- [ ] **"Follows You" Badge:** Quickly see if a user follows you directly on their profile.
+- [ ] **Auto-Scroll Reels:** Automatically swipe to the next Reel when the current one finishes.
+- [ ] **Hide Online Status:** Appear offline while still being able to see when others are active.
+- [ ] **Non-Followers Tracker:** A dedicated section in your Following list to see who doesn't follow you back, with an auto-unfollow capability.
 
 </details>
 
@@ -99,6 +113,9 @@
 <summary>🇹🇷 <b>Türkçe</b></summary>
 
 ## 🌟 Öne Çıkan Özellikler
+
+> [!TIP]
+> **Mod Menüyü Nasıl Açarım?:** Uygulamaya girdikten sonra ekranın köşesinde yer alan hareket ettirilebilir **✦** (Yıldız) butonuna dokunarak InstaPlus Mod Menüsüne istediğiniz an ulaşabilirsiniz!
 
 <p align="center">
   <img src="assets/mod_menu_tr.jpeg" alt="InstaPlus Mod Menüsü" width="300" style="border-radius:15px"/>
@@ -133,9 +150,8 @@
 * **Tam İngilizce Dil Desteği:**
   * Mod Menüsü tamamen yerelleştirildi (İngilizce & Türkçe).
   * Ayarlar satırına İngilizce ve Türkçe arasında anında geçiş yapmanızı sağlayan şık bir dil seçici eklendi.
-* **Onay Ekranı (Confirmation) Düzeltmeleri:**
-  * Gönderilere doğrudan kalp butonuna basarak ve çift tıklama ile beğenme işlemlerinde onay ekranının çalışmaması sorunu giderildi.
-  * DM (Mesajlar) ekranındaki sesli ve görüntülü arama başlatma butonları için eksik olan onay kalkanı eklendi.
+* **Hata Düzeltmeleri:**
+  * Çift tıklama (double-tap) ile beğenme ve takip etme (follow) onay ekranlarıyla alakalı bazı buglar fixlendi.
 
 ### v1.0.1
 * **Gelişmiş Galeri Arayüzü Güncellemesi:**
@@ -162,9 +178,21 @@
 
 ## 🔮 Gelecek Güncellemeler (Roadmap)
 
+### v1.0.1
 - [x] **Özel RVC Sunucusu:** Projeye özel [RVC-Server](https://github.com/eYushaa/RVC-FK) backendi (arka planı) eklenecektir.
-- [x] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği eklendi.
 - [x] **Kararlılık İyileştirmeleri:** Medya İndirici ve Hayalet Modu için performans düzenlemeleri.
+
+### v1.0.2
+- [x] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği eklendi.
+- [x] **Hata Düzeltmeleri:** Akıştaki (Feed) çift tıklama (double-tap) ile beğenme ve takip etme özellikleri aktif edildi, takip etme uyarısı eklendi.
+
+### v1.0.3 (Yakında)
+- [ ] **Bug Fixes & Performance:** Genel hata düzeltmeleri ve hız aşırtmaları.
+- [ ] **Dil Desteği Genişletmesi:** Farklı global diller için destek sağlanması.
+- [ ] **"Seni Takip Ediyor" Rozeti:** Kullanıcıların profiline girdiğinizde sizi takip edip etmediğini gösteren yerel bir ibare.
+- [ ] **Reelsleri Otomatik Geçme:** İzlenen Reels videosu bittiğinde otomatik olarak diğerine kaydırma özelliği.
+- [ ] **Çevrimiçi Durumunu Gizleme:** Diğer kişilerin aktifliğini görebilirken, kendi çevrimiçi durumunuzu tamamen gizleme özelliği.
+- [ ] **Geri Takip Etmeyenler Asistanı:** "Takip Edilenler" sekmesine özel bir bölüm ekleyerek sizi takip etmeyenleri topluca görme ve otomatik takipten çıkma (auto-unfollow) özelliği.
 
 </details>
 

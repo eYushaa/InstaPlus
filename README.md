@@ -96,6 +96,8 @@
 - [ ] **Auto-Scroll Reels:** Automatically swipe to the next Reel when the current one finishes.
 - [ ] **Hide Online Status:** Appear offline while still being able to see when others are active.
 - [ ] **Non-Followers Tracker:** A dedicated section in your Following list to see who doesn't follow you back, with an auto-unfollow capability.
+- [ ] **Text & Comment Copier:** Easily select and copy text from post captions and comments.
+- [ ] **Smart Ghost Mode:** If you send a message, all previous messages from that user will automatically be marked as "Seen".
 
 ### v1.0.2
 - [x] **Full Localization:** English UI translation for the embedded Mod Menu.
@@ -186,6 +188,8 @@
 - [ ] **Reelsleri Otomatik Geçme:** İzlenen Reels videosu bittiğinde otomatik olarak diğerine kaydırma özelliği.
 - [ ] **Çevrimiçi Durumunu Gizleme:** Diğer kişilerin aktifliğini görebilirken, kendi çevrimiçi durumunuzu tamamen gizleme özelliği.
 - [ ] **Geri Takip Etmeyenler Asistanı:** "Takip Edilenler" sekmesine özel bir bölüm ekleyerek sizi takip etmeyenleri topluca görme ve otomatik takipten çıkma (auto-unfollow) özelliği.
+- [ ] **Yorum ve Açıklama Kopyalayıcı:** Post açıklamalarını (caption) ve yorumları seçip kolayca kopyalama özelliği.
+- [ ] **Akıllı Hayalet Modu:** Hayalet modundayken karşı tarafa mesaj gönderdiğiniz an, o sohbetin önceki mesajlarına otomatik olarak "Görüldü" atılması.
 
 ### v1.0.2
 - [x] **Tam Dil Desteği:** Mod Menüsü için İngilizce arayüz seçeneği eklendi.
